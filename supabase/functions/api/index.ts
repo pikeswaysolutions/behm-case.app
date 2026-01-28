@@ -376,9 +376,11 @@ Deno.serve(async (req: Request) => {
 
         const startDate = url.searchParams.get("start_date");
         const endDate = url.searchParams.get("end_date");
+        const directorId = url.searchParams.get("director_id");
 
         if (startDate) query = query.gte("date_of_death", startDate);
         if (endDate) query = query.lte("date_of_death", endDate);
+        if (directorId && isAdmin && directorId !== "all") query = query.eq("director_id", directorId);
 
         const { data: cases } = await query;
         const { data: directors } = await supabase.from("directors").select("*").eq("is_active", true);

@@ -59,7 +59,10 @@ const DashboardPage = () => {
       params.append('start_date', format(startDate, 'yyyy-MM-dd'));
       params.append('end_date', format(endDate, 'yyyy-MM-dd'));
       params.append('grouping', grouping);
-      
+      if (selectedDirector !== 'all') {
+        params.append('director_id', selectedDirector);
+      }
+
       const response = await api().get(`/reports/dashboard?${params.toString()}`);
       setDashboardData(response.data);
     } catch (error) {
@@ -68,7 +71,7 @@ const DashboardPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [api, startDate, endDate, grouping]);
+  }, [api, startDate, endDate, grouping, selectedDirector]);
 
   const fetchDirectors = useCallback(async () => {
     try {
