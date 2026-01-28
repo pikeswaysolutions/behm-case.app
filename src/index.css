@@ -81,3 +81,19 @@
     display: none !important;
   }
 }
+
+/* Safe area support for iOS devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Mobile optimizations */
+@media (max-width: 1023px) {
+  .metric-card {
+    padding: 1rem;
+  }
+
+  .chart-container {
+    padding: 0.75rem;
+  }
+}

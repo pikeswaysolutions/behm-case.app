@@ -12,7 +12,9 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  MoreHorizontal,
+  ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -21,6 +23,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from './ui/sheet';
 import { Button } from './ui/button';
 
 const Layout = ({ children }) => {
@@ -28,6 +36,7 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -51,7 +60,7 @@ const Layout = ({ children }) => {
   const NavLink = ({ item, onClick }) => {
     const isActive = location.pathname === item.path;
     const Icon = item.icon;
-    
+
     return (
       <Link
         to={item.path}
@@ -65,10 +74,33 @@ const Layout = ({ children }) => {
     );
   };
 
+  const MobileNavItem = ({ item, onClick }) => {
+    const isActive = location.pathname === item.path;
+    const Icon = item.icon;
+
+    return (
+      <Link
+        to={item.path}
+        onClick={onClick}
+        className={`flex flex-col items-center justify-center gap-1 py-2 px-3 min-w-[64px] ${
+          isActive
+            ? 'text-primary'
+            : 'text-slate-500'
+        }`}
+        data-testid={`mobile-nav-${item.path.replace('/', '')}`}
+      >
+        <Icon className="w-6 h-6" strokeWidth={isActive ? 2 : 1.5} />
+        <span className="text-[10px] font-medium">{item.label}</span>
+      </Link>
+    );
+  };
+
+  const isMoreActive = adminNavItems.some(item => location.pathname === item.path);
+
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside 
+      {/* Desktop Sidebar */}
+      <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-navy to-navy-dark transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -125,7 +157,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -136,20 +168,23 @@ const Layout = ({ children }) => {
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
           <div className="flex items-center justify-between px-4 lg:px-8 h-16">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900"
-              data-testid="mobile-menu-btn"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+            {/* Mobile logo */}
+            <div className="lg:hidden flex items-center">
+              <Link to="/dashboard">
+                <img
+                  src="/behm-logo-topmenu.png"
+                  alt="Behm Family Funeral Homes"
+                  className="h-8 w-auto object-contain"
+                />
+              </Link>
+            </div>
 
-            <div className="flex-1" />
+            <div className="flex-1 hidden lg:block" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="flex items-center gap-2"
                   data-testid="user-menu-btn"
                 >
@@ -170,7 +205,7 @@ const Layout = ({ children }) => {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-red-600 cursor-pointer"
                   data-testid="logout-btn"
@@ -183,12 +218,82 @@ const Layout = ({ children }) => {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 lg:p-8">
+        {/* Page content - add bottom padding on mobile for nav */}
+        <main className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8">
           <div className="max-w-7xl mx-auto animate-fade-in">
             {children}
           </div>
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 safe-area-bottom">
+          <div className="flex items-center justify-around h-16">
+            {navItems.map((item) => (
+              <MobileNavItem key={item.path} item={item} />
+            ))}
+            {isAdmin && (
+              <button
+                onClick={() => setMoreMenuOpen(true)}
+                className={`flex flex-col items-center justify-center gap-1 py-2 px-3 min-w-[64px] ${
+                  isMoreActive
+                    ? 'text-primary'
+                    : 'text-slate-500'
+                }`}
+                data-testid="mobile-nav-more"
+              >
+                <MoreHorizontal className="w-6 h-6" strokeWidth={isMoreActive ? 2 : 1.5} />
+                <span className="text-[10px] font-medium">More</span>
+              </button>
+            )}
+          </div>
+        </nav>
+
+        {/* More Menu Sheet (Mobile) */}
+        <Sheet open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+          <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
+            <SheetHeader className="text-left pb-4">
+              <SheetTitle>Administration</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-1">
+              {adminNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMoreMenuOpen(false)}
+                    className={`flex items-center justify-between p-4 rounded-xl ${
+                      isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-slate-700 active:bg-slate-100'
+                    }`}
+                    data-testid={`more-menu-${item.path.replace('/', '')}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-400" />
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center gap-3 w-full p-4 rounded-xl text-red-600 active:bg-red-50"
+                data-testid="mobile-logout-btn"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Sign out</span>
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

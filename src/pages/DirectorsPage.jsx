@@ -25,7 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { Plus, Edit, Trash2, RefreshCw, ArrowRight } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, ArrowRight, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 const DirectorsPage = () => {
   const { api } = useAuth();
@@ -110,20 +116,65 @@ const DirectorsPage = () => {
     setDialogOpen(true);
   };
 
-  return (
-    <div className="space-y-6" data-testid="directors-page">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-playfair font-semibold text-slate-900">Funeral Directors</h1>
-          <p className="text-slate-500 mt-1">Manage funeral directors</p>
+  const DirectorCard = ({ director }) => (
+    <Card className="p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-900">{director.name}</h3>
+          <p className="text-sm text-slate-500 mt-1">
+            Added {director.created_at ? new Date(director.created_at).toLocaleDateString() : '—'}
+          </p>
         </div>
-        <Button onClick={openNew} className="btn-primary" data-testid="add-director-btn">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Director
+        <div className="flex items-center gap-2">
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+            director.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {director.is_active ? 'Active' : 'Inactive'}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEdit(director)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setReassignDialog(director)}>
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Reassign Cases
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteId(director.id)}
+                className="text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Deactivate
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-4 lg:space-y-6" data-testid="directors-page">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-playfair font-semibold text-slate-900">Funeral Directors</h1>
+          <p className="text-slate-500 mt-1 text-sm lg:text-base">Manage funeral directors</p>
+        </div>
+        <Button onClick={openNew} className="btn-primary" size="sm" data-testid="add-director-btn">
+          <Plus className="w-4 h-4 lg:mr-2" />
+          <span className="hidden lg:inline">Add Director</span>
         </Button>
       </div>
 
-      <Card>
+      {/* Desktop Table */}
+      <Card className="hidden lg:block">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{directors.length} Directors</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchDirectors}>
@@ -169,18 +220,18 @@ const DirectorsPage = () => {
                           <Button variant="ghost" size="sm" onClick={() => openEdit(d)} data-testid={`edit-director-${d.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setReassignDialog(d)}
                             title="Reassign cases"
                             data-testid={`reassign-director-${d.id}`}
                           >
                             <ArrowRight className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-red-500 hover:text-red-700"
                             onClick={() => setDeleteId(d.id)}
                             data-testid={`delete-director-${d.id}`}
@@ -197,6 +248,30 @@ const DirectorsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile Cards */}
+      <div className="lg:hidden space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-700">{directors.length} Directors</p>
+          <Button variant="ghost" size="sm" onClick={fetchDirectors}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="spinner w-8 h-8"></div>
+          </div>
+        ) : directors.length === 0 ? (
+          <Card className="p-8 text-center">
+            <p className="text-slate-500">No directors found</p>
+          </Card>
+        ) : (
+          directors.map((d) => (
+            <DirectorCard key={d.id} director={d} />
+          ))
+        )}
+      </div>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -216,6 +291,7 @@ const DirectorsPage = () => {
                   value={formData.name}
                   onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
                   required
+                  className="h-11"
                   data-testid="director-name-input"
                 />
               </div>
@@ -229,11 +305,11 @@ const DirectorsPage = () => {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1 lg:flex-none">
                 Cancel
               </Button>
-              <Button type="submit" className="btn-primary" data-testid="save-director-btn">
+              <Button type="submit" className="btn-primary flex-1 lg:flex-none" data-testid="save-director-btn">
                 {editingDirector ? 'Save Changes' : 'Add Director'}
               </Button>
             </DialogFooter>
@@ -253,7 +329,7 @@ const DirectorsPage = () => {
           <div className="py-4">
             <Label>Transfer to</Label>
             <Select value={reassignTo} onValueChange={setReassignTo}>
-              <SelectTrigger className="mt-2" data-testid="reassign-to-select">
+              <SelectTrigger className="mt-2 h-11" data-testid="reassign-to-select">
                 <SelectValue placeholder="Select director" />
               </SelectTrigger>
               <SelectContent>
@@ -265,9 +341,9 @@ const DirectorsPage = () => {
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReassignDialog(null)}>Cancel</Button>
-            <Button onClick={handleReassign} disabled={!reassignTo} className="btn-primary" data-testid="confirm-reassign-btn">
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReassignDialog(null)} className="flex-1 lg:flex-none">Cancel</Button>
+            <Button onClick={handleReassign} disabled={!reassignTo} className="btn-primary flex-1 lg:flex-none" data-testid="confirm-reassign-btn">
               Reassign Cases
             </Button>
           </DialogFooter>

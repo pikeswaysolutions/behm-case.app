@@ -17,13 +17,13 @@ const CaseDetailPage = () => {
   const navigate = useNavigate();
   const { api, isAdmin, canEditCases } = useAuth();
   const isNew = !id || id === 'new';
-  
+
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [directors, setDirectors] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [saleTypes, setSaleTypes] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     case_number: '',
     date_of_death: format(new Date(), 'yyyy-MM-dd'),
@@ -133,32 +133,61 @@ const CaseDetailPage = () => {
   }
 
   return (
-    <div className="space-y-6" data-testid="case-detail-page">
+    <div className="space-y-4 lg:space-y-6" data-testid="case-detail-page">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/cases')} data-testid="back-btn">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+      <div className="flex items-center gap-3 lg:gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/cases')}
+          data-testid="back-btn"
+          className="h-10 w-10 p-0 lg:h-auto lg:w-auto lg:px-3"
+        >
+          <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 lg:mr-2" />
+          <span className="hidden lg:inline">Back</span>
         </Button>
-        <div>
-          <h1 className="text-3xl font-playfair font-semibold text-slate-900">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl lg:text-3xl font-playfair font-semibold text-slate-900 truncate">
             {isNew ? 'New Case' : `Case ${formData.case_number}`}
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-slate-500 mt-1 text-sm hidden lg:block">
             {isNew ? 'Create a new funeral service case' : 'View and edit case details'}
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Mobile: Stack everything vertically */}
+        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6">
+          {/* Mobile Financial Summary - Show at top on mobile */}
+          <div className="lg:hidden">
+            <Card className="bg-slate-50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500">Balance Due</p>
+                    <p className={`text-2xl font-semibold ${balanceDue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      ${balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-500">Total Sale</p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      ${parseFloat(formData.total_sale || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Main Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 lg:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Case Information</CardTitle>
+              <CardHeader className="pb-3 lg:pb-6">
+                <CardTitle className="text-base lg:text-lg">Case Information</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CardContent className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
                 <div className="space-y-2">
                   <Label htmlFor="case_number">Case Number *</Label>
                   <Input
@@ -168,6 +197,7 @@ const CaseDetailPage = () => {
                     placeholder="BFH-2024-0001"
                     required
                     disabled={!canEditCases}
+                    className="h-11"
                     data-testid="case-number-input"
                   />
                 </div>
@@ -178,7 +208,7 @@ const CaseDetailPage = () => {
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-11"
                         disabled={!canEditCases}
                         data-testid="date-of-death-btn"
                       >
@@ -198,25 +228,27 @@ const CaseDetailPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="customer_first_name">Customer First Name *</Label>
+                  <Label htmlFor="customer_first_name">First Name *</Label>
                   <Input
                     id="customer_first_name"
                     value={formData.customer_first_name}
                     onChange={(e) => handleChange('customer_first_name', e.target.value)}
                     required
                     disabled={!canEditCases}
+                    className="h-11"
                     data-testid="first-name-input"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="customer_last_name">Customer Last Name *</Label>
+                  <Label htmlFor="customer_last_name">Last Name *</Label>
                   <Input
                     id="customer_last_name"
                     value={formData.customer_last_name}
                     onChange={(e) => handleChange('customer_last_name', e.target.value)}
                     required
                     disabled={!canEditCases}
+                    className="h-11"
                     data-testid="last-name-input"
                   />
                 </div>
@@ -228,7 +260,7 @@ const CaseDetailPage = () => {
                     onValueChange={(v) => handleChange('service_type_id', v)}
                     disabled={!canEditCases}
                   >
-                    <SelectTrigger data-testid="service-type-select">
+                    <SelectTrigger className="h-11" data-testid="service-type-select">
                       <SelectValue placeholder="Select service type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -246,7 +278,7 @@ const CaseDetailPage = () => {
                     onValueChange={(v) => handleChange('sale_type_id', v)}
                     disabled={!canEditCases}
                   >
-                    <SelectTrigger data-testid="sale-type-select">
+                    <SelectTrigger className="h-11" data-testid="sale-type-select">
                       <SelectValue placeholder="Select sale type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -264,7 +296,7 @@ const CaseDetailPage = () => {
                     onValueChange={(v) => handleChange('director_id', v)}
                     disabled={!canEditCases && !isAdmin}
                   >
-                    <SelectTrigger data-testid="director-select">
+                    <SelectTrigger className="h-11" data-testid="director-select">
                       <SelectValue placeholder="Select director" />
                     </SelectTrigger>
                     <SelectContent>
@@ -280,18 +312,80 @@ const CaseDetailPage = () => {
                   <Input
                     id="average_age"
                     type="number"
+                    inputMode="numeric"
                     value={formData.average_age}
                     onChange={(e) => handleChange('average_age', e.target.value)}
                     disabled={!canEditCases}
+                    className="h-11"
                     data-testid="avg-age-input"
                   />
                 </div>
               </CardContent>
             </Card>
+
+            {/* Mobile Financials Card */}
+            <Card className="lg:hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Financials</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="total_sale_mobile">Total Sale ($)</Label>
+                  <Input
+                    id="total_sale_mobile"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={formData.total_sale}
+                    onChange={(e) => handleChange('total_sale', e.target.value)}
+                    disabled={!canEditCases}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payments_received_mobile">Payments Received ($)</Label>
+                  <Input
+                    id="payments_received_mobile"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={formData.payments_received}
+                    onChange={(e) => handleChange('payments_received', e.target.value)}
+                    disabled={!canEditCases}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Date Paid in Full</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal h-11"
+                        disabled={!canEditCases}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_paid_in_full ? format(parseISO(formData.date_paid_in_full), 'PPP') : 'Not paid'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date_paid_in_full ? parseISO(formData.date_paid_in_full) : undefined}
+                        onSelect={(date) => handleChange('date_paid_in_full', date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Financials Sidebar */}
-          <div className="space-y-6">
+          {/* Desktop Financials Sidebar */}
+          <div className="hidden lg:block space-y-6">
             <Card className="sticky top-24">
               <CardHeader>
                 <CardTitle>Financials</CardTitle>
@@ -374,6 +468,25 @@ const CaseDetailPage = () => {
             </Card>
           </div>
         </div>
+
+        {/* Mobile Sticky Save Button */}
+        {canEditCases && (
+          <div className="lg:hidden fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-slate-200 safe-area-bottom">
+            <Button type="submit" className="w-full h-12 btn-primary" disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {isNew ? 'Create Case' : 'Save Changes'}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </form>
     </div>
   );

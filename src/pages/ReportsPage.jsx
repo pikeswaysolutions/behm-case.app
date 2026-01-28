@@ -6,7 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Button } from '../components/ui/button';
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { format, subMonths } from 'date-fns';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
+import { Label } from '../components/ui/label';
+import { format } from 'date-fns';
 import {
   CalendarIcon,
   Download,
@@ -14,7 +16,8 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
-  Users
+  Users,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -53,6 +56,13 @@ const ReportsPage = () => {
   const [grouping, setGrouping] = useState('monthly');
   const [startDate, setStartDate] = useState(new Date('2024-01-01'));
   const [endDate, setEndDate] = useState(new Date());
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    director: 'all',
+    grouping: 'monthly',
+    startDate: new Date('2024-01-01'),
+    endDate: new Date()
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -86,12 +96,30 @@ const ReportsPage = () => {
     fetchDirectors();
   }, [fetchData, fetchDirectors]);
 
-  const filteredMetrics = selectedDirector === 'all' 
+  const openFilterSheet = () => {
+    setTempFilters({
+      director: selectedDirector,
+      grouping: grouping,
+      startDate: startDate,
+      endDate: endDate
+    });
+    setFilterSheetOpen(true);
+  };
+
+  const applyFilters = () => {
+    setSelectedDirector(tempFilters.director);
+    setGrouping(tempFilters.grouping);
+    setStartDate(tempFilters.startDate);
+    setEndDate(tempFilters.endDate);
+    setFilterSheetOpen(false);
+  };
+
+  const filteredMetrics = selectedDirector === 'all'
     ? data?.director_metrics || []
     : data?.director_metrics?.filter(m => m.director_id === selectedDirector) || [];
 
-  const totals = selectedDirector === 'all' 
-    ? data?.grand_totals 
+  const totals = selectedDirector === 'all'
+    ? data?.grand_totals
     : filteredMetrics.reduce((acc, m) => ({
         case_count: acc.case_count + m.case_count,
         total_sales: acc.total_sales + m.total_sales,
@@ -179,6 +207,45 @@ const ReportsPage = () => {
     }
   };
 
+  const MetricCard = ({ label, value, icon: Icon, bgColor, iconColor }) => (
+    <Card className="metric-card">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-slate-500 font-medium">{label}</p>
+          <p className="text-xl lg:text-2xl font-semibold text-slate-900 mt-1 truncate">
+            {value}
+          </p>
+        </div>
+        <div className={`w-10 h-10 ${bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+      </div>
+    </Card>
+  );
+
+  const DirectorCard = ({ metric }) => (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold text-slate-900">{metric.director_name}</h4>
+        <span className="text-sm text-slate-500">{metric.case_count} cases</span>
+      </div>
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Total Sales</span>
+          <span className="font-medium">${metric.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Payments</span>
+          <span className="font-medium">${metric.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Balance</span>
+          <span className="font-medium text-amber-600">${metric.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        </div>
+      </div>
+    </Card>
+  );
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -188,28 +255,42 @@ const ReportsPage = () => {
   }
 
   return (
-    <div className="space-y-6" data-testid="reports-page">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 lg:space-y-6" data-testid="reports-page">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-playfair font-semibold text-slate-900">Reports</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-2xl lg:text-3xl font-playfair font-semibold text-slate-900">Reports</h1>
+          <p className="text-slate-500 mt-1 text-sm lg:text-base">
             {isAdmin ? 'Company-wide analytics and reporting' : `Performance report for ${user?.name}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} data-testid="export-report-csv">
-            <Download className="w-4 h-4 mr-2" />
-            CSV
+        <div className="flex items-center justify-between gap-2">
+          {/* Mobile Filter Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openFilterSheet}
+            className="lg:hidden flex items-center gap-2"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} data-testid="export-report-pdf">
-            <Download className="w-4 h-4 mr-2" />
-            PDF
-          </Button>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" size="sm" onClick={() => handleExport('csv')} data-testid="export-report-csv">
+              <Download className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">CSV</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} data-testid="export-report-pdf">
+              <Download className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">PDF</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
+      {/* Desktop Filters */}
+      <Card className="hidden lg:block">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <Popover>
@@ -279,83 +360,141 @@ const ReportsPage = () => {
         </CardContent>
       </Card>
 
+      {/* Mobile Filter Sheet */}
+      <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
+        <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-2xl">
+          <SheetHeader className="text-left pb-4">
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label>Date Range</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start h-12">
+                      <CalendarIcon className="w-4 h-4 mr-2" />
+                      {format(tempFilters.startDate, 'MMM d, yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempFilters.startDate}
+                      onSelect={(date) => date && setTempFilters(f => ({ ...f, startDate: date }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start h-12">
+                      <CalendarIcon className="w-4 h-4 mr-2" />
+                      {format(tempFilters.endDate, 'MMM d, yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempFilters.endDate}
+                      onSelect={(date) => date && setTempFilters(f => ({ ...f, endDate: date }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Group By</Label>
+              <Select value={tempFilters.grouping} onValueChange={(v) => setTempFilters(f => ({ ...f, grouping: v }))}>
+                <SelectTrigger className="w-full h-12">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label>Director</Label>
+                <Select value={tempFilters.director} onValueChange={(v) => setTempFilters(f => ({ ...f, director: v }))}>
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue placeholder="All Directors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Directors</SelectItem>
+                    {directors.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <SheetFooter className="mt-6 flex-row gap-3">
+            <Button variant="outline" className="flex-1 h-12" onClick={() => setFilterSheetOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="flex-1 h-12 btn-primary" onClick={applyFilters}>
+              Apply Filters
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
       {/* Summary Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="metric-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Total Cases</p>
-              <p className="text-2xl font-semibold text-slate-900 mt-1">{totals?.case_count || 0}</p>
-            </div>
-            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="metric-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Total Sales</p>
-              <p className="text-2xl font-semibold text-slate-900 mt-1">
-                ${(totals?.total_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-emerald-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="metric-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Payments</p>
-              <p className="text-2xl font-semibold text-slate-900 mt-1">
-                ${(totals?.payments_received || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-gold/10 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-gold" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="metric-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Balance Due</p>
-              <p className="text-2xl font-semibold text-slate-900 mt-1">
-                ${(totals?.total_balance_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-amber-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="metric-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Avg Age</p>
-              <p className="text-2xl font-semibold text-slate-900 mt-1">{(totals?.average_age || 0).toFixed(1)}</p>
-            </div>
-            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-slate-600" />
-            </div>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+        <MetricCard
+          label="Total Cases"
+          value={totals?.case_count || 0}
+          icon={FileText}
+          bgColor="bg-primary/10"
+          iconColor="text-primary"
+        />
+        <MetricCard
+          label="Total Sales"
+          value={`$${(totals?.total_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          icon={DollarSign}
+          bgColor="bg-emerald-50"
+          iconColor="text-emerald-600"
+        />
+        <MetricCard
+          label="Payments"
+          value={`$${(totals?.payments_received || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          icon={TrendingUp}
+          bgColor="bg-gold/10"
+          iconColor="text-gold"
+        />
+        <MetricCard
+          label="Balance Due"
+          value={`$${(totals?.total_balance_due || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          icon={DollarSign}
+          bgColor="bg-amber-50"
+          iconColor="text-amber-600"
+        />
+        <MetricCard
+          label="Avg Age"
+          value={(totals?.average_age || 0).toFixed(1)}
+          icon={Users}
+          bgColor="bg-slate-100"
+          iconColor="text-slate-600"
+        />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Charts - Stack on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <Card className="chart-container">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold">Sales & Payments Trend</CardTitle>
+            <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[250px] lg:h-[300px]">
               <Line data={trendChartData} options={chartOptions} />
             </div>
           </CardContent>
@@ -363,10 +502,10 @@ const ReportsPage = () => {
 
         <Card className="chart-container">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold">Case Volume</CardTitle>
+            <CardTitle className="text-base lg:text-lg font-semibold">Case Volume</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[250px] lg:h-[300px]">
               <Bar data={caseVolumeData} options={chartOptions} />
             </div>
           </CardContent>
@@ -375,29 +514,30 @@ const ReportsPage = () => {
 
       {/* Director Distribution */}
       {isAdmin && filteredMetrics.length > 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           <Card className="chart-container">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">Sales by Director</CardTitle>
+              <CardTitle className="text-base lg:text-lg font-semibold">Sales by Director</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[250px] flex items-center justify-center">
-                <Doughnut 
-                  data={directorDistribution} 
+              <div className="h-[200px] lg:h-[250px] flex items-center justify-center">
+                <Doughnut
+                  data={directorDistribution}
                   options={{
                     ...chartOptions,
                     cutout: '60%',
                     plugins: {
                       ...chartOptions.plugins,
-                      legend: { position: 'right' }
+                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } }
                     }
-                  }} 
+                  }}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2">
+          {/* Desktop Table */}
+          <Card className="lg:col-span-2 hidden lg:block">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Director Performance</CardTitle>
             </CardHeader>
@@ -430,6 +570,14 @@ const ReportsPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden lg:col-span-2 space-y-3">
+            <h3 className="text-base font-semibold text-slate-900">Director Performance</h3>
+            {filteredMetrics.map((m, i) => (
+              <DirectorCard key={m.director_id || i} metric={m} />
+            ))}
+          </div>
         </div>
       )}
     </div>

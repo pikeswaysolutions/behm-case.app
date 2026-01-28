@@ -25,7 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { Plus, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 const UsersPage = () => {
   const { api } = useAuth();
@@ -143,20 +149,78 @@ const UsersPage = () => {
     setDialogOpen(true);
   };
 
-  return (
-    <div className="space-y-6" data-testid="users-page">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-playfair font-semibold text-slate-900">Users</h1>
-          <p className="text-slate-500 mt-1">Manage user accounts and permissions</p>
+  const UserCard = ({ user }) => (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-slate-900 truncate">{user.name}</h3>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              user.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {user.role}
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 truncate">{user.email}</p>
+          {user.role === 'director' && (
+            <p className="text-sm text-slate-500 mt-1">
+              {directors.find(d => d.id === user.director_id)?.name || 'No director assigned'}
+            </p>
+          )}
         </div>
-        <Button onClick={openNew} className="btn-primary" data-testid="add-user-btn">
-          <Plus className="w-4 h-4 mr-2" />
-          Add User
+        <div className="flex items-center gap-2">
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+            user.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {user.is_active ? 'Active' : 'Inactive'}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEdit(user)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteId(user.id)}
+                className="text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Deactivate
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {user.role === 'director' && (
+        <div className="mt-3 pt-3 border-t border-slate-100">
+          <span className={`text-sm ${user.can_edit_cases ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {user.can_edit_cases ? 'Can edit cases' : 'View only'}
+          </span>
+        </div>
+      )}
+    </Card>
+  );
+
+  return (
+    <div className="space-y-4 lg:space-y-6" data-testid="users-page">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-playfair font-semibold text-slate-900">Users</h1>
+          <p className="text-slate-500 mt-1 text-sm lg:text-base">Manage user accounts and permissions</p>
+        </div>
+        <Button onClick={openNew} className="btn-primary" size="sm" data-testid="add-user-btn">
+          <Plus className="w-4 h-4 lg:mr-2" />
+          <span className="hidden lg:inline">Add User</span>
         </Button>
       </div>
 
-      <Card>
+      {/* Desktop Table */}
+      <Card className="hidden lg:block">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{users.length} Users</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchUsers}>
@@ -220,9 +284,9 @@ const UsersPage = () => {
                           <Button variant="ghost" size="sm" onClick={() => openEdit(u)} data-testid={`edit-user-${u.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-red-500 hover:text-red-700"
                             onClick={() => setDeleteId(u.id)}
                             data-testid={`delete-user-${u.id}`}
@@ -240,9 +304,33 @@ const UsersPage = () => {
         </CardContent>
       </Card>
 
+      {/* Mobile Cards */}
+      <div className="lg:hidden space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-700">{users.length} Users</p>
+          <Button variant="ghost" size="sm" onClick={fetchUsers}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="spinner w-8 h-8"></div>
+          </div>
+        ) : users.length === 0 ? (
+          <Card className="p-8 text-center">
+            <p className="text-slate-500">No users found</p>
+          </Card>
+        ) : (
+          users.map((u) => (
+            <UserCard key={u.id} user={u} />
+          ))
+        )}
+      </div>
+
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Edit User' : 'Add User'}</DialogTitle>
             <DialogDescription>
@@ -258,6 +346,7 @@ const UsersPage = () => {
                   value={formData.name}
                   onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
                   required
+                  className="h-11"
                   data-testid="user-name-input"
                 />
               </div>
@@ -267,9 +356,11 @@ const UsersPage = () => {
                 <Input
                   id="email"
                   type="email"
+                  inputMode="email"
                   value={formData.email}
                   onChange={(e) => setFormData(f => ({ ...f, email: e.target.value }))}
                   required
+                  className="h-11"
                   data-testid="user-email-input"
                 />
               </div>
@@ -284,6 +375,7 @@ const UsersPage = () => {
                   value={formData.password}
                   onChange={(e) => setFormData(f => ({ ...f, password: e.target.value }))}
                   required={!editingUser}
+                  className="h-11"
                   data-testid="user-password-input"
                 />
               </div>
@@ -294,7 +386,7 @@ const UsersPage = () => {
                   value={formData.role}
                   onValueChange={(v) => setFormData(f => ({ ...f, role: v }))}
                 >
-                  <SelectTrigger data-testid="user-role-select">
+                  <SelectTrigger className="h-11" data-testid="user-role-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -312,7 +404,7 @@ const UsersPage = () => {
                       value={formData.director_id}
                       onValueChange={(v) => setFormData(f => ({ ...f, director_id: v }))}
                     >
-                      <SelectTrigger data-testid="user-director-select">
+                      <SelectTrigger className="h-11" data-testid="user-director-select">
                         <SelectValue placeholder="Select director" />
                       </SelectTrigger>
                       <SelectContent>
@@ -323,7 +415,7 @@ const UsersPage = () => {
                     </Select>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between py-2">
                     <Label htmlFor="can_edit">Can Add/Edit Cases</Label>
                     <Switch
                       id="can_edit"
@@ -335,7 +427,7 @@ const UsersPage = () => {
                 </>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-2">
                 <Label htmlFor="is_active">Active</Label>
                 <Switch
                   id="is_active"
@@ -345,11 +437,11 @@ const UsersPage = () => {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1 lg:flex-none">
                 Cancel
               </Button>
-              <Button type="submit" className="btn-primary" data-testid="save-user-btn">
+              <Button type="submit" className="btn-primary flex-1 lg:flex-none" data-testid="save-user-btn">
                 {editingUser ? 'Save Changes' : 'Create User'}
               </Button>
             </DialogFooter>
