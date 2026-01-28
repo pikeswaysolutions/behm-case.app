@@ -215,11 +215,18 @@ const CasesPage = () => {
             {filteredCases.length} Cases
           </CardTitle>
           <Button variant="outline" size="sm" onClick={() => {
-            const params = new URLSearchParams();
-            params.append('start_date', format(filters.start_date, 'yyyy-MM-dd'));
-            params.append('end_date', format(filters.end_date, 'yyyy-MM-dd'));
-            if (filters.director_id !== 'all') params.append('director_id', filters.director_id);
-            window.open(`/api/export/csv?${params.toString()}`, '_blank');
+            const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Sale Type', 'Director', 'Date Paid In Full', 'Payments Received', 'Average Age', 'Total Sale', 'Balance Due'];
+            const rows = filteredCases.map(c => [
+              c.case_number, c.date_of_death, c.customer_first_name, c.customer_last_name,
+              c.service_type_name, c.sale_type_name, c.director_name, c.date_paid_in_full || '',
+              c.payments_received, c.average_age || '', c.total_sale, c.total_balance_due
+            ]);
+            const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'cases_export.csv';
+            link.click();
           }} data-testid="export-cases-btn">
             <Download className="w-4 h-4 mr-2" />
             Export

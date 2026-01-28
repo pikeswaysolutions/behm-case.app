@@ -84,18 +84,34 @@ const DashboardPage = () => {
     fetchDirectors();
   }, [fetchDashboard, fetchDirectors]);
 
-  const handleExportCSV = () => {
-    const params = new URLSearchParams();
-    params.append('start_date', format(startDate, 'yyyy-MM-dd'));
-    params.append('end_date', format(endDate, 'yyyy-MM-dd'));
-    window.open(`/api/export/csv?${params.toString()}`, '_blank');
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append('start_date', format(startDate, 'yyyy-MM-dd'));
+      params.append('end_date', format(endDate, 'yyyy-MM-dd'));
+      const response = await api().get(`cases?${params.toString()}`);
+      const cases = response.data;
+
+      const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Sale Type', 'Director', 'Date Paid In Full', 'Payments Received', 'Average Age', 'Total Sale', 'Balance Due'];
+      const rows = cases.map(c => [
+        c.case_number, c.date_of_death, c.customer_first_name, c.customer_last_name,
+        c.service_type_name, c.sale_type_name, c.director_name, c.date_paid_in_full || '',
+        c.payments_received, c.average_age || '', c.total_sale, c.total_balance_due
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'cases_export.csv';
+      link.click();
+    } catch (error) {
+      toast.error('Failed to export CSV');
+    }
   };
 
   const handleExportPDF = () => {
-    const params = new URLSearchParams();
-    params.append('start_date', format(startDate, 'yyyy-MM-dd'));
-    params.append('end_date', format(endDate, 'yyyy-MM-dd'));
-    window.open(`/api/export/pdf?${params.toString()}`, '_blank');
+    toast.info('PDF export will be available soon');
   };
 
   const filteredMetrics = selectedDirector === 'all' 

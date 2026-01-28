@@ -7,9 +7,9 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
-import axios from 'axios';
 
-const API = '/api';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -21,11 +21,16 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Seed data on first load
     const seedData = async () => {
       try {
         setSeeding(true);
-        await axios.post(`${API}/seed`);
+        await fetch(`${SUPABASE_URL}/functions/v1/auth/seed`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
       } catch (error) {
         // Ignore if already seeded
       } finally {
@@ -44,7 +49,7 @@ const LoginPage = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.response?.data?.detail || 'Invalid email or password');
+      toast.error(error.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -52,7 +57,6 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Login form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
@@ -93,7 +97,7 @@ const LoginPage = () => {
                     <Input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
+                      placeholder="********"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -109,8 +113,8 @@ const LoginPage = () => {
                     </button>
                   </div>
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-11 btn-primary"
                   disabled={loading || seeding}
                   data-testid="login-submit-btn"
@@ -146,8 +150,7 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Right side - Image */}
-      <div 
+      <div
         className="hidden lg:flex lg:flex-1 relative bg-cover bg-center"
         style={{
           backgroundImage: `linear-gradient(to bottom right, rgba(27, 42, 65, 0.85), rgba(15, 23, 42, 0.95)), url('https://images.unsplash.com/photo-1673219498641-e54db77132a8?crop=entropy&cs=srgb&fm=jpg&q=85')`
@@ -158,7 +161,7 @@ const LoginPage = () => {
             <blockquote className="text-2xl font-playfair text-white italic leading-relaxed">
               "Since 1906, we have served Northeast Ohio with a deep sense of commitment, compassion, and dignity."
             </blockquote>
-            <p className="mt-6 text-gold font-medium">— Behm Family</p>
+            <p className="mt-6 text-gold font-medium">- Behm Family</p>
           </div>
         </div>
       </div>
