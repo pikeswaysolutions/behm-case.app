@@ -175,7 +175,7 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
 
 # ==================== AUTH ROUTES ====================
 
-@api_router.post("/auth/register", response_model=Token)
+@api_router.post("/auth/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate):
     existing = await db.users.find_one({"email": user_data.email})
     if existing:
@@ -221,7 +221,7 @@ async def list_users(admin: dict = Depends(require_admin)):
     users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
     return users
 
-@api_router.post("/users", response_model=User)
+@api_router.post("/users", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, admin: dict = Depends(require_admin)):
     existing = await db.users.find_one({"email": user_data.email})
     if existing:
@@ -269,7 +269,7 @@ async def list_directors(current_user: dict = Depends(get_current_user)):
     directors = await db.directors.find({}, {"_id": 0}).to_list(1000)
     return directors
 
-@api_router.post("/directors", response_model=Director)
+@api_router.post("/directors", response_model=Director, status_code=status.HTTP_201_CREATED)
 async def create_director(director_data: DirectorCreate, admin: dict = Depends(require_admin)):
     director_dict = {
         "id": str(uuid.uuid4()),
@@ -315,7 +315,7 @@ async def list_service_types(current_user: dict = Depends(get_current_user)):
     types = await db.service_types.find({}, {"_id": 0}).to_list(1000)
     return types
 
-@api_router.post("/service-types", response_model=ServiceType)
+@api_router.post("/service-types", response_model=ServiceType, status_code=status.HTTP_201_CREATED)
 async def create_service_type(type_data: ServiceTypeBase, admin: dict = Depends(require_admin)):
     type_dict = {
         "id": str(uuid.uuid4()),
@@ -345,7 +345,7 @@ async def list_sale_types(current_user: dict = Depends(get_current_user)):
     types = await db.sale_types.find({}, {"_id": 0}).to_list(1000)
     return types
 
-@api_router.post("/sale-types", response_model=SaleType)
+@api_router.post("/sale-types", response_model=SaleType, status_code=status.HTTP_201_CREATED)
 async def create_sale_type(type_data: SaleTypeBase, admin: dict = Depends(require_admin)):
     type_dict = {
         "id": str(uuid.uuid4()),
@@ -427,7 +427,7 @@ async def get_case(case_id: str, current_user: dict = Depends(get_current_user))
     
     return await enrich_case(case)
 
-@api_router.post("/cases", response_model=Case)
+@api_router.post("/cases", response_model=Case, status_code=status.HTTP_201_CREATED)
 async def create_case(case_data: CaseCreate, current_user: dict = Depends(get_current_user)):
     # Check if director has permission to create cases
     if current_user.get("role") != "admin" and not current_user.get("can_edit_cases"):
