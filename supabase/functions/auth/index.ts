@@ -1,7 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-import { encode } from "https://deno.land/std@0.220.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +10,73 @@ const corsHeaders = {
 const JWT_SECRET = Deno.env.get("JWT_SECRET") || "behm-funeral-home-secret-key-2024";
 const JWT_EXPIRATION_HOURS = 24;
 
-function createJWT(payload: Record<string, unknown>): string {
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const passwordData = encoder.encode(password);
+
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    passwordData,
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256
+  );
+
+  const hashArray = new Uint8Array(derivedBits);
+  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return `${saltHex}:${hashHex}`;
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  try {
+    const [saltHex, hashHex] = storedHash.split(':');
+    if (!saltHex || !hashHex) return false;
+
+    const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+    const encoder = new TextEncoder();
+    const passwordData = encoder.encode(password);
+
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      passwordData,
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
+
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 100000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      256
+    );
+
+    const computedHash = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return computedHash === hashHex;
+  } catch {
+    return false;
+  }
+}
+
+async function createJWT(payload: Record<string, unknown>): Promise<string> {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const exp = now + (JWT_EXPIRATION_HOURS * 60 * 60);
@@ -26,18 +90,19 @@ function createJWT(payload: Record<string, unknown>): string {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(JWT_SECRET);
 
-  return crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     "raw",
     keyData,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
-  ).then(async (key) => {
-    const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-    const signatureArray = new Uint8Array(signature);
-    const signatureBase64 = btoa(String.fromCharCode(...signatureArray)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-    return `${data}.${signatureBase64}`;
-  });
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  const signatureArray = new Uint8Array(signature);
+  const signatureBase64 = btoa(String.fromCharCode(...signatureArray)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+  return `${data}.${signatureBase64}`;
 }
 
 async function verifyJWT(token: string): Promise<Record<string, unknown> | null> {
@@ -74,15 +139,6 @@ async function verifyJWT(token: string): Promise<Record<string, unknown> | null>
   } catch {
     return null;
   }
-}
-
-async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
-  return await bcrypt.hash(password, salt);
-}
-
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(password, hash);
 }
 
 Deno.serve(async (req: Request) => {
