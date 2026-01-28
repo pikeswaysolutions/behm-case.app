@@ -12,8 +12,7 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown,
-  Building2
+  ChevronDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -77,14 +76,12 @@ const Layout = ({ children }) => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-white/10">
-            <Link to="/dashboard" className="flex items-center gap-3" data-testid="logo-link">
-              <div className="w-10 h-10 bg-gold rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-navy" />
-              </div>
-              <div>
-                <h1 className="text-white font-playfair font-semibold text-lg">Behm Funeral</h1>
-                <p className="text-slate-400 text-xs">Management System</p>
-              </div>
+            <Link to="/dashboard" className="flex items-center justify-center" data-testid="logo-link">
+              <img
+                src="/behm-logo-topmenu.png"
+                alt="Behm Family Funeral Homes"
+                className="h-12 w-auto object-contain"
+              />
             </Link>
           </div>
 
