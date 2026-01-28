@@ -88,14 +88,14 @@ const DashboardPage = () => {
     const params = new URLSearchParams();
     params.append('start_date', format(startDate, 'yyyy-MM-dd'));
     params.append('end_date', format(endDate, 'yyyy-MM-dd'));
-    window.open(`${process.env.REACT_APP_BACKEND_URL}/api/export/csv?${params.toString()}`, '_blank');
+    window.open(`/api/export/csv?${params.toString()}`, '_blank');
   };
 
   const handleExportPDF = () => {
     const params = new URLSearchParams();
     params.append('start_date', format(startDate, 'yyyy-MM-dd'));
     params.append('end_date', format(endDate, 'yyyy-MM-dd'));
-    window.open(`${process.env.REACT_APP_BACKEND_URL}/api/export/pdf?${params.toString()}`, '_blank');
+    window.open(`/api/export/pdf?${params.toString()}`, '_blank');
   };
 
   const filteredMetrics = selectedDirector === 'all' 

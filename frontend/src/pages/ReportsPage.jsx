@@ -165,7 +165,7 @@ const ReportsPage = () => {
     params.append('start_date', format(startDate, 'yyyy-MM-dd'));
     params.append('end_date', format(endDate, 'yyyy-MM-dd'));
     if (selectedDirector !== 'all') params.append('director_id', selectedDirector);
-    window.open(`${process.env.REACT_APP_BACKEND_URL}/api/export/${type}?${params.toString()}`, '_blank');
+    window.open(`/api/export/${type}?${params.toString()}`, '_blank');
   };
 
   if (loading && !data) {

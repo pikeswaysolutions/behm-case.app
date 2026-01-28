@@ -219,7 +219,7 @@ const CasesPage = () => {
             params.append('start_date', format(filters.start_date, 'yyyy-MM-dd'));
             params.append('end_date', format(filters.end_date, 'yyyy-MM-dd'));
             if (filters.director_id !== 'all') params.append('director_id', filters.director_id);
-            window.open(`${process.env.REACT_APP_BACKEND_URL}/api/export/csv?${params.toString()}`, '_blank');
+            window.open(`/api/export/csv?${params.toString()}`, '_blank');
           }} data-testid="export-cases-btn">
             <Download className="w-4 h-4 mr-2" />
             Export
