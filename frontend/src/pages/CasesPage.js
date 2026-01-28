@@ -42,7 +42,7 @@ const CasesPage = () => {
   const [filters, setFilters] = useState({
     search: '',
     director_id: 'all',
-    start_date: subMonths(new Date(), 13),
+    start_date: new Date('2024-01-01'),
     end_date: new Date()
   });
   const [page, setPage] = useState(1);
