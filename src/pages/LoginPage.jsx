@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -61,9 +61,11 @@ const LoginPage = () => {
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
-            <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src="/behm-logo-topmenu.png"
+              alt="Behm Family Funeral Homes"
+              className="h-16 w-auto mx-auto mb-6 object-contain"
+            />
             <h1 className="text-3xl font-playfair font-semibold text-slate-900">
               Behm Funeral Home
             </h1>
