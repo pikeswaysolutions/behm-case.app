@@ -1,0 +1,130 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "Behm Funeral Management",
+      "tone": "Dignified, Calm, Professional, Trustworthy",
+      "theme_mode": "light",
+      "primary_archetype": "Organic & Earthy (Trust, Calm) mixed with Swiss Clarity"
+    },
+    "typography": {
+      "font_family": {
+        "headings": "Playfair Display, serif",
+        "body": "Inter, sans-serif",
+        "mono": "JetBrains Mono, monospace"
+      },
+      "scale": {
+        "h1": "text-4xl md:text-5xl font-semibold tracking-tight leading-tight",
+        "h2": "text-3xl md:text-4xl font-medium tracking-tight",
+        "h3": "text-2xl font-medium tracking-normal",
+        "body_lg": "text-lg leading-relaxed",
+        "body_base": "text-base leading-relaxed text-slate-600",
+        "caption": "text-sm text-slate-500 uppercase tracking-wider"
+      },
+      "rules": [
+        "Use Playfair Display for all Page Titles and Section Headings (h1, h2).",
+        "Use Inter for all data tables, forms, and body text.",
+        "Never use pure black text. Use Slate-900 (#0F172A) for headings and Slate-600 (#475569) for body."
+      ]
+    },
+    "colors": {
+      "palette": {
+        "primary": {
+          "DEFAULT": "#1B2A41",
+          "foreground": "#FFFFFF",
+          "description": "Deep Navy - Authority and Calm"
+        },
+        "secondary": {
+          "DEFAULT": "#F1F5F9",
+          "foreground": "#1E293B",
+          "description": "Soft Slate - Neutral backgrounds"
+        },
+        "accent": {
+          "DEFAULT": "#C5A059",
+          "foreground": "#FFFFFF",
+          "description": "Muted Gold - Respectful highlights (Status, VIP)"
+        },
+        "background": "#F8F9FA",
+        "surface": "#FFFFFF",
+        "border": "#E2E8F0",
+        "muted": "#64748B",
+        "success": "#059669",
+        "warning": "#D97706",
+        "error": "#DC2626"
+      },
+      "gradients": {
+        "subtle_fade": "bg-gradient-to-b from-white to-slate-50",
+        "navy_depth": "bg-gradient-to-br from-[#1B2A41] to-[#0F172A]"
+      }
+    },
+    "layout": {
+      "spacing_scale": "Generous. Use p-6 or p-8 for cards. Gap-6 for grids.",
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "grid_system": {
+        "dashboard": "grid grid-cols-1 md:grid-cols-12 gap-6",
+        "form": "grid grid-cols-1 md:grid-cols-2 gap-8"
+      },
+      "border_radius": {
+        "default": "rounded-md",
+        "card": "rounded-lg",
+        "button": "rounded-md"
+      }
+    },
+    "components": {
+      "buttons": {
+        "primary": "bg-[#1B2A41] text-white hover:bg-[#2C3E50] shadow-sm transition-all duration-200 font-medium px-6 py-2.5",
+        "secondary": "bg-white text-[#1B2A41] border border-slate-200 hover:bg-slate-50 shadow-sm transition-all duration-200 font-medium px-6 py-2.5",
+        "ghost": "text-slate-600 hover:text-[#1B2A41] hover:bg-slate-100 px-4 py-2"
+      },
+      "cards": {
+        "default": "bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300 p-6 rounded-lg",
+        "metric": "bg-white border-l-4 border-[#1B2A41] shadow-sm p-6 rounded-r-lg"
+      },
+      "inputs": {
+        "default": "bg-white border-slate-200 focus:border-[#1B2A41] focus:ring-1 focus:ring-[#1B2A41] rounded-md h-11"
+      },
+      "tables": {
+        "header": "bg-slate-50 text-slate-600 font-medium uppercase text-xs tracking-wider border-b border-slate-200",
+        "row": "hover:bg-slate-50 transition-colors border-b border-slate-100 text-sm text-slate-700"
+      }
+    },
+    "visual_enhancers": {
+      "shadows": "shadow-sm for cards, shadow-lg for dropdowns/modals. Avoid heavy drop shadows.",
+      "textures": "Use subtle noise texture on the login page background over the navy gradient.",
+      "glassmorphism": "Use backdrop-blur-md bg-white/80 for sticky headers only."
+    },
+    "assets": {
+      "images": {
+        "login_bg": "https://images.unsplash.com/photo-1673219498641-e54db77132a8?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "director_placeholder_female": "https://images.unsplash.com/photo-1758518727888-ffa196002e59?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "director_placeholder_male": "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=srgb&fm=jpg&q=85"
+      },
+      "icons": "Use Lucide React icons. Stroke width 1.5px for a refined look."
+    },
+    "accessibility": {
+      "contrast": "Ensure text is Slate-600 or darker on white backgrounds.",
+      "focus_states": "Visible focus rings using ring-2 ring-offset-2 ring-[#1B2A41].",
+      "aria": "All interactive elements must have aria-labels if no text is present."
+    },
+    "universal_guidelines": [
+      "Do not use gradients for text.",
+      "Avoid pure black (#000000).",
+      "Use 'Playfair Display' ONLY for headings. Use 'Inter' for everything else.",
+      "All interactive elements must have data-testid attributes.",
+      "Use Sonner for toasts.",
+      "Use Recharts for charts (clean, minimal lines, no heavy fills)."
+    ]
+  },
+  "instructions_to_main_agent": {
+    "setup": [
+      "Install fonts: @fontsource/playfair-display, @fontsource/inter",
+      "Configure Tailwind theme to match the color palette.",
+      "Create a 'Layout' component that includes the Sidebar and Topbar."
+    ],
+    "pages": {
+      "login": "Split screen. Left side: Login form (clean, minimal). Right side: Navy background with the ocean image overlay (opacity 20%) and a quote about service/dignity.",
+      "dashboard": "Bento Grid layout. Top row: Key Metrics (Cases, Revenue). Middle: Recent Cases Table. Right: Quick Actions.",
+      "cases_list": "Full-width table. Filters in a clean bar above. Status badges using soft pastel backgrounds (e.g., bg-blue-50 text-blue-700).",
+      "case_detail": "Two-column layout. Left: Case Information (Forms). Right: Financials & Payments (Sticky card)."
+    }
+  }
+}
