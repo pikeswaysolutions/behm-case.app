@@ -426,14 +426,44 @@ Deno.serve(async (req: Request) => {
 
         const grouping = url.searchParams.get("grouping") || "monthly";
         const timeSeries: Record<string, any> = {};
+
+        const getWeekNumber = (date: Date): string => {
+          const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+          const dayNum = d.getUTCDay() || 7;
+          d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+          const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+          const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+          return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
+        };
+
+        const getQuarter = (date: Date): string => {
+          const month = date.getMonth();
+          const quarter = Math.floor(month / 3) + 1;
+          return `${date.getFullYear()}-Q${quarter}`;
+        };
+
         cases?.forEach((c: any) => {
-          const dod = String(c.date_of_death || "").substring(0, grouping === "monthly" ? 7 : 4);
-          if (!timeSeries[dod]) {
-            timeSeries[dod] = { period: dod, cases: 0, sales: 0, payments: 0 };
+          if (!c.date_of_death) return;
+
+          const date = new Date(c.date_of_death);
+          let period: string;
+
+          if (grouping === "weekly") {
+            period = getWeekNumber(date);
+          } else if (grouping === "monthly") {
+            period = c.date_of_death.substring(0, 7);
+          } else if (grouping === "quarterly") {
+            period = getQuarter(date);
+          } else {
+            period = c.date_of_death.substring(0, 4);
           }
-          timeSeries[dod].cases += 1;
-          timeSeries[dod].sales += Number(c.total_sale || 0);
-          timeSeries[dod].payments += Number(c.payments_received || 0);
+
+          if (!timeSeries[period]) {
+            timeSeries[period] = { period, cases: 0, sales: 0, payments: 0 };
+          }
+          timeSeries[period].cases += 1;
+          timeSeries[period].sales += Number(c.total_sale || 0);
+          timeSeries[period].payments += Number(c.payments_received || 0);
         });
 
         return new Response(JSON.stringify({
