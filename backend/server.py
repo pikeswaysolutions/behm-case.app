@@ -533,12 +533,13 @@ async def get_dashboard(
         del dm["ages"]
     
     # Grand totals
+    all_ages = [c.get("average_age") for c in cases if c.get("average_age") is not None]
     grand_totals = {
         "case_count": sum(dm["case_count"] for dm in director_metrics.values()),
         "total_sales": sum(dm["total_sales"] for dm in director_metrics.values()),
         "payments_received": sum(dm["payments_received"] for dm in director_metrics.values()),
         "total_balance_due": sum(dm["total_balance_due"] for dm in director_metrics.values()),
-        "average_age": sum(c.get("average_age", 0) for c in cases) / len(cases) if cases else 0
+        "average_age": sum(all_ages) / len(all_ages) if all_ages else 0
     }
     
     # Time series data for charts
