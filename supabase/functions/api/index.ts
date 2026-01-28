@@ -427,13 +427,13 @@ Deno.serve(async (req: Request) => {
         const grouping = url.searchParams.get("grouping") || "monthly";
         const timeSeries: Record<string, any> = {};
 
-        const getWeekNumber = (date: Date): string => {
-          const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-          const dayNum = d.getUTCDay() || 7;
-          d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-          const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-          const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-          return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
+        const getWeekEndingSunday = (date: Date): string => {
+          const d = new Date(date);
+          const dayOfWeek = d.getDay();
+          const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+          const sunday = new Date(d);
+          sunday.setDate(d.getDate() + daysUntilSunday);
+          return sunday.toISOString().substring(0, 10);
         };
 
         const getQuarter = (date: Date): string => {
@@ -449,7 +449,7 @@ Deno.serve(async (req: Request) => {
           let period: string;
 
           if (grouping === "weekly") {
-            period = getWeekNumber(date);
+            period = getWeekEndingSunday(date);
           } else if (grouping === "monthly") {
             period = c.date_of_death.substring(0, 7);
           } else if (grouping === "quarterly") {
