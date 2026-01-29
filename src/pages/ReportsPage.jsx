@@ -4,10 +4,9 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
-import { DateInput } from '../components/ui/date-input';
-import { format } from 'date-fns';
 import {
   Download,
   RefreshCw,
@@ -52,22 +51,22 @@ const ReportsPage = () => {
   const [directors, setDirectors] = useState([]);
   const [selectedDirector, setSelectedDirector] = useState('all');
   const [grouping, setGrouping] = useState('monthly');
-  const [startDate, setStartDate] = useState(new Date('2024-01-01'));
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState('2017-01-01');
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
-    startDate: new Date('2024-01-01'),
-    endDate: new Date()
+    startDate: '2017-01-01',
+    endDate: new Date().toISOString().split('T')[0]
   });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('start_date', format(startDate, 'yyyy-MM-dd'));
-      params.append('end_date', format(endDate, 'yyyy-MM-dd'));
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
       params.append('grouping', grouping);
 
       const response = await api().get(`/reports/dashboard?${params.toString()}`);
@@ -291,19 +290,21 @@ const ReportsPage = () => {
       <Card className="hidden lg:block">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <DateInput
+            <Input
+              type="date"
               value={startDate}
-              onChange={(date) => date && setStartDate(date)}
-              className="w-[160px]"
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-[150px]"
               data-testid="report-start-date"
             />
 
             <span className="text-slate-400">to</span>
 
-            <DateInput
+            <Input
+              type="date"
               value={endDate}
-              onChange={(date) => date && setEndDate(date)}
-              className="w-[160px]"
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-[150px]"
               data-testid="report-end-date"
             />
 
@@ -352,18 +353,20 @@ const ReportsPage = () => {
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs text-slate-500 mb-1.5">Start Date</Label>
-                  <DateInput
+                  <Input
+                    type="date"
                     value={tempFilters.startDate}
-                    onChange={(date) => date && setTempFilters(f => ({ ...f, startDate: date }))}
-                    className="w-full"
+                    onChange={(e) => setTempFilters(f => ({ ...f, startDate: e.target.value }))}
+                    className="w-full h-12"
                   />
                 </div>
                 <div>
                   <Label className="text-xs text-slate-500 mb-1.5">End Date</Label>
-                  <DateInput
+                  <Input
+                    type="date"
                     value={tempFilters.endDate}
-                    onChange={(date) => date && setTempFilters(f => ({ ...f, endDate: date }))}
-                    className="w-full"
+                    onChange={(e) => setTempFilters(f => ({ ...f, endDate: e.target.value }))}
+                    className="w-full h-12"
                   />
                 </div>
               </div>

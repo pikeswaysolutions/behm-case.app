@@ -14,7 +14,8 @@ import {
   X,
   ChevronDown,
   MoreHorizontal,
-  ChevronRight
+  ChevronRight,
+  Table2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ const Layout = ({ children }) => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/cases', label: 'Cases', icon: FileText },
+    { path: '/data-table', label: 'Data Table', icon: Table2 },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
   ];
 

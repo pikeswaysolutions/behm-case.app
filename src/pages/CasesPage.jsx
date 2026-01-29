@@ -9,8 +9,6 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Badge } from '../components/ui/badge';
-import { DateInput } from '../components/ui/date-input';
-import { format } from 'date-fns';
 import {
   Plus,
   Search,
@@ -51,16 +49,16 @@ const CasesPage = () => {
   const [filters, setFilters] = useState({
     search: '',
     director_id: 'all',
-    start_date: new Date('2024-01-01'),
-    end_date: new Date()
+    start_date: '2017-01-01',
+    end_date: new Date().toISOString().split('T')[0]
   });
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director_id: 'all',
-    start_date: new Date('2024-01-01'),
-    end_date: new Date()
+    start_date: '2017-01-01',
+    end_date: new Date().toISOString().split('T')[0]
   });
   const [expandedCards, setExpandedCards] = useState(new Set());
   const perPage = 20;
@@ -72,8 +70,8 @@ const CasesPage = () => {
       if (filters.director_id && filters.director_id !== 'all') {
         params.append('director_id', filters.director_id);
       }
-      params.append('start_date', format(filters.start_date, 'yyyy-MM-dd'));
-      params.append('end_date', format(filters.end_date, 'yyyy-MM-dd'));
+      params.append('start_date', filters.start_date);
+      params.append('end_date', filters.end_date);
 
       const response = await api().get(`/cases?${params.toString()}`);
       setCases(response.data);
@@ -382,19 +380,21 @@ const CasesPage = () => {
               </Select>
             )}
 
-            <DateInput
+            <Input
+              type="date"
               value={filters.start_date}
-              onChange={(date) => date && setFilters(f => ({ ...f, start_date: date }))}
-              className="w-[160px]"
+              onChange={(e) => setFilters(f => ({ ...f, start_date: e.target.value }))}
+              className="w-[150px]"
               data-testid="start-date-filter"
             />
 
             <span className="text-slate-400">to</span>
 
-            <DateInput
+            <Input
+              type="date"
               value={filters.end_date}
-              onChange={(date) => date && setFilters(f => ({ ...f, end_date: date }))}
-              className="w-[160px]"
+              onChange={(e) => setFilters(f => ({ ...f, end_date: e.target.value }))}
+              className="w-[150px]"
               data-testid="end-date-filter"
             />
           </div>
@@ -444,18 +444,20 @@ const CasesPage = () => {
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs text-slate-500 mb-1.5">Start Date</Label>
-                  <DateInput
+                  <Input
+                    type="date"
                     value={tempFilters.start_date}
-                    onChange={(date) => date && setTempFilters(f => ({ ...f, start_date: date }))}
-                    className="w-full"
+                    onChange={(e) => setTempFilters(f => ({ ...f, start_date: e.target.value }))}
+                    className="w-full h-12"
                   />
                 </div>
                 <div>
                   <Label className="text-xs text-slate-500 mb-1.5">End Date</Label>
-                  <DateInput
+                  <Input
+                    type="date"
                     value={tempFilters.end_date}
-                    onChange={(date) => date && setTempFilters(f => ({ ...f, end_date: date }))}
-                    className="w-full"
+                    onChange={(e) => setTempFilters(f => ({ ...f, end_date: e.target.value }))}
+                    className="w-full h-12"
                   />
                 </div>
               </div>

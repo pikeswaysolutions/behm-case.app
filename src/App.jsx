@@ -15,6 +15,7 @@ import ServiceTypesPage from './pages/ServiceTypesPage';
 import SaleTypesPage from './pages/SaleTypesPage';
 import ReportsPage from './pages/ReportsPage';
 import ImportPage from './pages/ImportPage';
+import DataTablePage from './pages/DataTablePage';
 import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -120,13 +121,21 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-      <Route 
-        path="/reports" 
+      <Route
+        path="/reports"
         element={
           <ProtectedRoute>
             <ReportsPage />
           </ProtectedRoute>
-        } 
+        }
+      />
+      <Route
+        path="/data-table"
+        element={
+          <ProtectedRoute>
+            <DataTablePage />
+          </ProtectedRoute>
+        }
       />
       <Route 
         path="/import" 

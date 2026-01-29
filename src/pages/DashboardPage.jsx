@@ -4,21 +4,17 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Button } from '../components/ui/button';
-import { Calendar } from '../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
-import { format } from 'date-fns';
 import {
   FileText,
   DollarSign,
   Users,
   TrendingUp,
-  CalendarIcon,
   RefreshCw,
   Download,
-  SlidersHorizontal,
-  ChevronDown
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -53,22 +49,22 @@ const DashboardPage = () => {
   const [directors, setDirectors] = useState([]);
   const [selectedDirector, setSelectedDirector] = useState('all');
   const [grouping, setGrouping] = useState('monthly');
-  const [startDate, setStartDate] = useState(new Date('2024-01-01'));
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState('2017-01-01');
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
-    startDate: new Date('2024-01-01'),
-    endDate: new Date()
+    startDate: '2017-01-01',
+    endDate: new Date().toISOString().split('T')[0]
   });
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('start_date', format(startDate, 'yyyy-MM-dd'));
-      params.append('end_date', format(endDate, 'yyyy-MM-dd'));
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
       params.append('grouping', grouping);
       if (selectedDirector !== 'all') {
         params.append('director_id', selectedDirector);
@@ -101,8 +97,8 @@ const DashboardPage = () => {
   const handleExportCSV = async () => {
     try {
       const params = new URLSearchParams();
-      params.append('start_date', format(startDate, 'yyyy-MM-dd'));
-      params.append('end_date', format(endDate, 'yyyy-MM-dd'));
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
       const response = await api().get(`cases?${params.toString()}`);
       const cases = response.data;
 
@@ -322,39 +318,21 @@ const DashboardPage = () => {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-[140px] justify-start" data-testid="start-date-btn">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    {format(startDate, 'MMM d, yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={(date) => date && setStartDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-[150px]"
+                data-testid="start-date-btn"
+              />
               <span className="text-slate-400">to</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-[140px] justify-start" data-testid="end-date-btn">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    {format(endDate, 'MMM d, yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) => date && setEndDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-[150px]"
+                data-testid="end-date-btn"
+              />
             </div>
 
             <Select value={grouping} onValueChange={setGrouping}>
@@ -400,38 +378,18 @@ const DashboardPage = () => {
             <div className="space-y-2">
               <Label>Date Range</Label>
               <div className="grid grid-cols-2 gap-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start h-12">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      {format(tempFilters.startDate, 'MMM d, yyyy')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={tempFilters.startDate}
-                      onSelect={(date) => date && setTempFilters(f => ({ ...f, startDate: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start h-12">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      {format(tempFilters.endDate, 'MMM d, yyyy')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={tempFilters.endDate}
-                      onSelect={(date) => date && setTempFilters(f => ({ ...f, endDate: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  value={tempFilters.startDate}
+                  onChange={(e) => setTempFilters(f => ({ ...f, startDate: e.target.value }))}
+                  className="w-full h-12"
+                />
+                <Input
+                  type="date"
+                  value={tempFilters.endDate}
+                  onChange={(e) => setTempFilters(f => ({ ...f, endDate: e.target.value }))}
+                  className="w-full h-12"
+                />
               </div>
             </div>
 
