@@ -48,24 +48,38 @@ const ImportPage = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api().post('/import/excel', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const token = localStorage.getItem('auth_token');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const apiUrl = `${supabaseUrl}/functions/v1/import/excel`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'X-Auth-Token': token || '',
+        },
+        body: formData,
       });
 
-      setResult(response.data);
-      
-      if (response.data.imported > 0) {
-        toast.success(`Successfully imported ${response.data.imported} cases`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to import file');
       }
-      if (response.data.skipped > 0) {
-        toast.info(`Skipped ${response.data.skipped} duplicate cases`);
+
+      const data = await response.json();
+      setResult(data);
+
+      if (data.imported > 0) {
+        toast.success(`Successfully imported ${data.imported} cases`);
       }
-      if (response.data.errors?.length > 0) {
-        toast.warning(`${response.data.errors.length} rows had errors`);
+      if (data.skipped > 0) {
+        toast.info(`Skipped ${data.skipped} duplicate cases`);
+      }
+      if (data.errors?.length > 0) {
+        toast.warning(`${data.errors.length} rows had errors`);
       }
     } catch (error) {
       console.error('Import error:', error);
-      toast.error(error.response?.data?.detail || 'Failed to import file');
+      toast.error(error.message || 'Failed to import file');
     } finally {
       setUploading(false);
     }
@@ -234,9 +248,9 @@ const ImportPage = () => {
             <h4 className="font-semibold text-slate-800">Expected Column Headers:</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
               {[
-                'Case Number', 'Date of Death', 'Customer First Name', 'Customer Last Name',
-                'Service Type', 'Sale Type', 'Director', 'Date Paid In Full',
-                'Payments Received', 'Avg Age', 'Total Sale'
+                'Case Nbr', 'Sale Type', 'Director', 'Date of Death',
+                'Customer First Name', 'Customer Last Name', 'Service', 'Total Sale',
+                'Payment', 'Date PIF', 'Ag'
               ].map(col => (
                 <span key={col} className="bg-slate-100 px-2 py-1 rounded text-xs font-mono">
                   {col}
@@ -246,11 +260,12 @@ const ImportPage = () => {
 
             <h4 className="font-semibold text-slate-800 mt-6">Notes:</h4>
             <ul className="list-disc pl-5 space-y-1 text-slate-600">
-              <li>Case Number must be unique - duplicates will be skipped</li>
+              <li>Case Nbr must be unique - duplicates will be skipped</li>
               <li>New Service Types, Sale Types, and Directors will be created automatically</li>
-              <li>Dates should be in a recognizable format (YYYY-MM-DD preferred)</li>
-              <li>Currency values should be numbers (without $ symbol)</li>
-              <li>The import is safe to run multiple times - existing records won't be duplicated</li>
+              <li>Column headers are flexible - the system will recognize variations like "Case Number", "Case Nbr", "Service", "Service Type", etc.</li>
+              <li>Dates can be in Excel format or text format (MM/DD/YYYY, YYYY-MM-DD, etc.)</li>
+              <li>Currency values can include $ symbols and commas - they will be cleaned automatically</li>
+              <li>The import is safe to run multiple times - existing case numbers won't be duplicated</li>
             </ul>
           </div>
         </CardContent>
