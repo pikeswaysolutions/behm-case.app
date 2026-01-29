@@ -24,21 +24,17 @@ git filter-branch --force --index-filter \
 git push origin --force --all
 ```
 
-### 2. Rotate Your Secrets
-Since the secrets were exposed, you should rotate them:
+### 2. About the Exposed Secrets
 
-1. **JWT_SECRET**: Generate a new secure random string
-   ```bash
-   # Generate a new secret (run this in terminal)
-   openssl rand -base64 32
-   ```
-   Update this in your `.env` file
+**Good News:** Since this application uses Supabase authentication, there's no custom JWT secret needed. Supabase handles all JWT signing internally.
 
-2. **Supabase Keys**: If concerned about exposure:
-   - Log into your Supabase dashboard
-   - Go to Project Settings > API
-   - Consider rotating your service role key if it was exposed
-   - The anon key is meant to be public, so it's less of a concern
+**What was exposed:**
+- The `.env` file was committed, but it only contained the Supabase anon key, which is designed to be public-facing
+- No sensitive service role keys or custom secrets were exposed
+
+**Action Required:**
+- None! The Supabase anon key is meant to be used on the client side and doesn't pose a security risk
+- The important thing is preventing the `.env` file from being committed in the future
 
 ### 3. Update Your .env File
 ```bash
