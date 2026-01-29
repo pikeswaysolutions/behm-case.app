@@ -24,15 +24,17 @@ const DateInput = React.forwardRef(
       const newValue = e.target.value;
       setInputValue(newValue);
 
-      const formats = ["MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "M-d-yyyy"];
-      for (const formatString of formats) {
-        try {
-          const parsed = parse(newValue, formatString, new Date());
-          if (isValid(parsed)) {
-            onChange?.(parsed);
-            return;
+      if (newValue.length >= 8) {
+        const formats = ["MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "M-d-yyyy", "M/d/yy", "MM/dd/yy"];
+        for (const formatString of formats) {
+          try {
+            const parsed = parse(newValue, formatString, new Date());
+            if (isValid(parsed) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2100) {
+              onChange?.(parsed);
+              return;
+            }
+          } catch (err) {
           }
-        } catch (err) {
         }
       }
     };
