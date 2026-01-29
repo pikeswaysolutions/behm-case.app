@@ -1,58 +1,74 @@
-import { readFileSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync, readdirSync } from 'fs';
+import dotenv from 'dotenv';
 
-const envContent = readFileSync('.env', 'utf-8');
-const envVars = {};
-envContent.split('\n').forEach(line => {
-  const [key, ...valueParts] = line.split('=');
-  if (key && valueParts.length > 0) {
-    envVars[key.trim()] = valueParts.join('=').trim();
-  }
-});
+dotenv.config();
 
-const supabase = createClient(
-  envVars.VITE_SUPABASE_URL,
-  envVars.VITE_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-const sqlContent = readFileSync('import-cases.sql', 'utf-8');
-const statements = sqlContent.split(';\n').filter(s => s.trim() && !s.trim().startsWith('/*'));
-
-console.log(`Executing ${statements.length} SQL statements...`);
-
-async function executeStatements() {
-  let successful = 0;
-  let failed = 0;
-  const batchSize = 100;
-
-  for (let i = 0; i < statements.length; i += batchSize) {
-    const batch = statements.slice(i, i + batchSize);
-    const batchSQL = batch.join(';\n') + ';';
-
-    try {
-      const { data, error } = await supabase.rpc('exec_sql', { sql: batchSQL });
-
-      if (error) {
-        console.error(`Batch ${Math.floor(i / batchSize) + 1} failed:`, error.message);
-        failed += batch.length;
-      } else {
-        successful += batch.length;
-        console.log(`Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(statements.length / batchSize)} completed (${successful}/${statements.length})`);
-      }
-    } catch (error) {
-      console.error(`Batch ${Math.floor(i / batchSize) + 1} exception:`, error.message);
-      failed += batch.length;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-
-  console.log(`\n=== Import Complete ===`);
-  console.log(`Successful: ${successful}`);
-  console.log(`Failed: ${failed}`);
-
-  const { data: count } = await supabase.from('cases').select('*', { count: 'exact', head: true });
-  console.log(`\nTotal cases in database: ${count || 0}`);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing Supabase credentials');
+  process.exit(1);
 }
 
-executeStatements().catch(console.error);
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function executeBatch(batchFile) {
+  const sql = readFileSync(batchFile, 'utf-8');
+
+  if (!sql.trim()) {
+    return { success: true, count: 0 };
+  }
+
+  const { data, error } = await supabase.rpc('execute_sql', { query: sql });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, count: 1 };
+}
+
+async function main() {
+  const batchFiles = readdirSync('.')
+    .filter(f => f.startsWith('import-batch-'))
+    .sort();
+
+  console.log(`Found ${batchFiles.length} batch files to execute\n`);
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (let i = 0; i < batchFiles.length; i++) {
+    const file = batchFiles[i];
+    process.stdout.write(`[${i + 1}/${batchFiles.length}] Processing ${file}... `);
+
+    try {
+      const result = await executeBatch(file);
+
+      if (result.success) {
+        console.log('✓');
+        successCount++;
+      } else {
+        console.log(`✗ ${result.error}`);
+        errorCount++;
+      }
+    } catch (err) {
+      console.log(`✗ ${err.message}`);
+      errorCount++;
+    }
+  }
+
+  console.log(`\n=== Summary ===`);
+  console.log(`Successfully executed: ${successCount} batches`);
+  console.log(`Failed: ${errorCount} batches`);
+
+  const { count } = await supabase
+    .from('cases')
+    .select('*', { count: 'exact', head: true });
+
+  console.log(`\nTotal cases in database: ${count}`);
+}
+
+main().catch(console.error);

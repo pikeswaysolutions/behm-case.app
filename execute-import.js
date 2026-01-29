@@ -1,78 +1,51 @@
-import { readFileSync } from 'fs';
-import { createClient } from '@supabase/supabase-js';
+import { readdirSync, readFileSync } from 'fs';
+import pkg from 'pg';
+const { Client } = pkg;
 
-const envContent = readFileSync('.env', 'utf-8');
-const envVars = {};
-envContent.split('\n').forEach(line => {
-  const [key, ...valueParts] = line.split('=');
-  if (key && valueParts.length > 0) {
-    envVars[key.trim()] = valueParts.join('=').trim();
-  }
+const connectionString = 'postgresql://postgres.vnyaqrykqrxcbsjmnaya:' + process.env.DB_PASSWORD + '@aws-0-us-east-1.pooler.supabase.com:6543/postgres';
+
+const client = new Client({
+  connectionString: connectionString + '?sslmode=require'
 });
 
-const supabase = createClient(
-  envVars.VITE_SUPABASE_URL,
-  envVars.VITE_SUPABASE_ANON_KEY
-);
+async function main() {
+  await client.connect();
+  console.log('Connected to database\n');
 
-const sqlContent = readFileSync('import-cases.sql', 'utf-8');
-const statements = sqlContent.split(';\n').filter(s => s.trim());
+  const batchFiles = readdirSync('.')
+    .filter(f => f.startsWith('import-batch-'))
+    .sort();
 
-console.log(`Executing ${statements.length} SQL statements in batches...`);
+  console.log(\`Found \${batchFiles.length} batch files\n\`);
 
-async function executeBatch(batch, batchNum) {
-  const batchSQL = batch.join(';\n') + ';';
+  let successCount = 0;
+  let errorCount = 0;
 
-  try {
-    const response = await fetch(`${envVars.VITE_SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${envVars.VITE_SUPABASE_ANON_KEY}`,
-        'apikey': envVars.VITE_SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ query: batchSQL })
-    });
+  for (let i = 0; i < batchFiles.length; i++) {
+    const file = batchFiles[i];
+    process.stdout.write(\`[\${i + 1}/\${batchFiles.length}] Processing \${file}... \`);
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error(`Batch ${batchNum} failed:`, error);
-      return false;
+    try {
+      const sql = readFileSync(file, 'utf-8');
+      if (sql.trim()) {
+        await client.query(sql);
+        console.log('✓');
+        successCount++;
+      }
+    } catch (err) {
+      console.log(\`✗ \${err.message}\`);
+      errorCount++;
     }
-
-    console.log(`Batch ${batchNum} completed successfully`);
-    return true;
-  } catch (error) {
-    console.error(`Batch ${batchNum} error:`, error.message);
-    return false;
-  }
-}
-
-async function executeAll() {
-  const batchSize = 50;
-  let successful = 0;
-  let failed = 0;
-
-  for (let i = 0; i < statements.length; i += batchSize) {
-    const batch = statements.slice(i, i + batchSize);
-    const batchNum = Math.floor(i / batchSize) + 1;
-    const totalBatches = Math.ceil(statements.length / batchSize);
-
-    console.log(`\nProcessing batch ${batchNum}/${totalBatches} (${batch.length} statements)...`);
-
-    const result = await executeBatch(batch, batchNum);
-    if (result) {
-      successful += batch.length;
-    } else {
-      failed += batch.length;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  console.log(`\n=== Import Complete ===`);
-  console.log(`Successful: ${successful}`);
-  console.log(`Failed: ${failed}`);
+  const result = await client.query('SELECT COUNT(*) as count FROM cases');
+  
+  console.log(\`\n=== Summary ===\`);
+  console.log(\`Successfully executed: \${successCount} batches\`);
+  console.log(\`Failed: \${errorCount} batches\`);
+  console.log(\`\nTotal cases in database: \${result.rows[0].count}\`);
+
+  await client.end();
 }
 
-executeAll().catch(console.error);
+main().catch(console.error);
