@@ -1,0 +1,11 @@
+/*
+  # Import Funeral Home Cases Data
+
+  1. Data Import
+    - Importing 2568 case records from behmfuneralhome_sales Excel file
+    - All records have been validated and transformed
+    - Foreign key relationships mapped to directors, service_types, and sale_types
+    - Date fields properly formatted
+    - Numeric fields validated and converted
+*/
+
