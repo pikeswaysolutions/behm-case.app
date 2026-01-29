@@ -96,78 +96,6 @@ function parseNumber(value: any): number {
   return 0;
 }
 
-async function getOrCreateDirector(supabase: any, name: string): Promise<string | null> {
-  if (!name || typeof name !== 'string') return null;
-
-  const trimmedName = name.trim();
-  if (!trimmedName) return null;
-
-  const { data: existing } = await supabase
-    .from("directors")
-    .select("id")
-    .ilike("name", trimmedName)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return existing[0].id;
-  }
-
-  const { data: newDirector } = await supabase
-    .from("directors")
-    .insert({ name: trimmedName, is_active: true })
-    .select("id");
-
-  return newDirector && newDirector.length > 0 ? newDirector[0].id : null;
-}
-
-async function getOrCreateServiceType(supabase: any, name: string): Promise<string | null> {
-  if (!name || typeof name !== 'string') return null;
-
-  const trimmedName = name.trim();
-  if (!trimmedName) return null;
-
-  const { data: existing } = await supabase
-    .from("service_types")
-    .select("id")
-    .ilike("name", trimmedName)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return existing[0].id;
-  }
-
-  const { data: newServiceType } = await supabase
-    .from("service_types")
-    .insert({ name: trimmedName, is_active: true })
-    .select("id");
-
-  return newServiceType && newServiceType.length > 0 ? newServiceType[0].id : null;
-}
-
-async function getOrCreateSaleType(supabase: any, name: string): Promise<string | null> {
-  if (!name || typeof name !== 'string') return null;
-
-  const trimmedName = name.trim();
-  if (!trimmedName) return null;
-
-  const { data: existing } = await supabase
-    .from("sale_types")
-    .select("id")
-    .ilike("name", trimmedName)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return existing[0].id;
-  }
-
-  const { data: newSaleType } = await supabase
-    .from("sale_types")
-    .insert({ name: trimmedName, is_active: true })
-    .select("id");
-
-  return newSaleType && newSaleType.length > 0 ? newSaleType[0].id : null;
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -242,7 +170,7 @@ Deno.serve(async (req: Request) => {
           columnMap.date_of_death = index;
         } else if (normalized.includes('customer') && normalized.includes('first')) {
           columnMap.customer_first_name = index;
-        } else if (normalized.includes('customer') && normalized.includes('last')) {
+        } else if (normalized.includes('customer') && (normalized.includes('last') || normalized === 'customer')) {
           columnMap.customer_last_name = index;
         } else if (normalized.includes('service') || normalized === 'service') {
           columnMap.service_type = index;
@@ -257,11 +185,108 @@ Deno.serve(async (req: Request) => {
         }
       });
 
+      if (columnMap.case_number === undefined) {
+        return new Response(
+          JSON.stringify({ detail: "Could not find 'Case Number' or 'Case Nbr' column in the file" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: existingCases } = await supabase
+        .from("cases")
+        .select("case_number");
+
+      const existingCaseNumbers = new Set(
+        existingCases?.map((c: any) => c.case_number) || []
+      );
+
+      const { data: allDirectors } = await supabase
+        .from("directors")
+        .select("id, name");
+
+      const directorMap = new Map(
+        allDirectors?.map((d: any) => [d.name.toLowerCase(), d.id]) || []
+      );
+
+      const { data: allServiceTypes } = await supabase
+        .from("service_types")
+        .select("id, name");
+
+      const serviceTypeMap = new Map(
+        allServiceTypes?.map((s: any) => [s.name.toLowerCase(), s.id]) || []
+      );
+
+      const { data: allSaleTypes } = await supabase
+        .from("sale_types")
+        .select("id, name");
+
+      const saleTypeMap = new Map(
+        allSaleTypes?.map((s: any) => [s.name.toLowerCase(), s.id]) || []
+      );
+
       const results = {
         imported: 0,
         skipped: 0,
         errors: [] as string[],
       };
+
+      const newDirectors: string[] = [];
+      const newServiceTypes: string[] = [];
+      const newSaleTypes: string[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] as any[];
+        if (!row || row.every(cell => !cell)) continue;
+
+        const directorName = row[columnMap.director]?.toString().trim();
+        const serviceTypeName = row[columnMap.service_type]?.toString().trim();
+        const saleTypeName = row[columnMap.sale_type]?.toString().trim();
+
+        if (directorName && !directorMap.has(directorName.toLowerCase()) && !newDirectors.includes(directorName)) {
+          newDirectors.push(directorName);
+        }
+        if (serviceTypeName && !serviceTypeMap.has(serviceTypeName.toLowerCase()) && !newServiceTypes.includes(serviceTypeName)) {
+          newServiceTypes.push(serviceTypeName);
+        }
+        if (saleTypeName && !saleTypeMap.has(saleTypeName.toLowerCase()) && !newSaleTypes.includes(saleTypeName)) {
+          newSaleTypes.push(saleTypeName);
+        }
+      }
+
+      if (newDirectors.length > 0) {
+        const { data: insertedDirectors } = await supabase
+          .from("directors")
+          .insert(newDirectors.map(name => ({ name, is_active: true })))
+          .select("id, name");
+
+        insertedDirectors?.forEach((d: any) => {
+          directorMap.set(d.name.toLowerCase(), d.id);
+        });
+      }
+
+      if (newServiceTypes.length > 0) {
+        const { data: insertedServiceTypes } = await supabase
+          .from("service_types")
+          .insert(newServiceTypes.map(name => ({ name, is_active: true })))
+          .select("id, name");
+
+        insertedServiceTypes?.forEach((s: any) => {
+          serviceTypeMap.set(s.name.toLowerCase(), s.id);
+        });
+      }
+
+      if (newSaleTypes.length > 0) {
+        const { data: insertedSaleTypes } = await supabase
+          .from("sale_types")
+          .insert(newSaleTypes.map(name => ({ name, is_active: true })))
+          .select("id, name");
+
+        insertedSaleTypes?.forEach((s: any) => {
+          saleTypeMap.set(s.name.toLowerCase(), s.id);
+        });
+      }
+
+      const casesToInsert = [];
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i] as any[];
@@ -276,13 +301,7 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          const { data: existingCase } = await supabase
-            .from("cases")
-            .select("id")
-            .eq("case_number", caseNumber)
-            .limit(1);
-
-          if (existingCase && existingCase.length > 0) {
+          if (existingCaseNumbers.has(caseNumber)) {
             results.skipped++;
             continue;
           }
@@ -301,12 +320,12 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          const directorId = await getOrCreateDirector(supabase, directorName);
-          const serviceTypeId = await getOrCreateServiceType(supabase, serviceTypeName);
-          const saleTypeId = saleTypeName ? await getOrCreateSaleType(supabase, saleTypeName) : null;
+          const directorId = directorMap.get(directorName.toLowerCase());
+          const serviceTypeId = serviceTypeMap.get(serviceTypeName.toLowerCase());
+          const saleTypeId = saleTypeName ? saleTypeMap.get(saleTypeName.toLowerCase()) : null;
 
           if (!directorId || !serviceTypeId) {
-            results.errors.push(`Row ${rowNum}: Failed to create or find director/service type`);
+            results.errors.push(`Row ${rowNum}: Could not find director or service type`);
             continue;
           }
 
@@ -324,7 +343,7 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          const caseData = {
+          casesToInsert.push({
             case_number: caseNumber,
             date_of_death: dateOfDeath,
             customer_first_name: customerFirstName,
@@ -337,18 +356,24 @@ Deno.serve(async (req: Request) => {
             average_age: parseNumber(row[columnMap.aging]),
             total_sale: parseNumber(row[columnMap.total_sale]),
             created_at: new Date().toISOString(),
-          };
-
-          const { error } = await supabase.from("cases").insert(caseData);
-
-          if (error) {
-            results.errors.push(`Row ${rowNum}: ${error.message}`);
-          } else {
-            results.imported++;
-          }
+          });
 
         } catch (error: any) {
           results.errors.push(`Row ${rowNum}: ${error.message}`);
+        }
+      }
+
+      if (casesToInsert.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < casesToInsert.length; i += BATCH_SIZE) {
+          const batch = casesToInsert.slice(i, i + BATCH_SIZE);
+          const { error } = await supabase.from("cases").insert(batch);
+
+          if (error) {
+            results.errors.push(`Batch error (rows ${i + 2} to ${i + batch.length + 1}): ${error.message}`);
+          } else {
+            results.imported += batch.length;
+          }
         }
       }
 
