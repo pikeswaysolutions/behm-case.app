@@ -185,28 +185,43 @@ Deno.serve(async (req: Request) => {
     // CASES
     if (resource === "cases") {
       if (req.method === "GET" && !resourceId) {
-        let query = supabase.from("cases_enriched").select("*", { count: 'exact' });
-
-        if (!isAdmin && currentUser.director_id) {
-          query = query.eq("director_id", currentUser.director_id);
-        } else if (!isAdmin) {
-          return new Response(JSON.stringify([]), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
         const directorId = url.searchParams.get("director_id");
         const startDate = url.searchParams.get("start_date");
         const endDate = url.searchParams.get("end_date");
 
-        if (directorId && isAdmin) query = query.eq("director_id", directorId);
-        if (startDate) query = query.gte("date_of_death", startDate);
-        if (endDate) query = query.lte("date_of_death", endDate);
+        const allData: any[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
 
-        query = query.range(0, 99999);
+        while (hasMore) {
+          let query = supabase.from("cases_enriched").select("*");
 
-        const { data, error } = await query;
-        if (error) throw error;
+          if (!isAdmin && currentUser.director_id) {
+            query = query.eq("director_id", currentUser.director_id);
+          } else if (!isAdmin) {
+            return new Response(JSON.stringify([]), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
 
-        const enriched = data.map((c: any) => ({
+          if (directorId && isAdmin) query = query.eq("director_id", directorId);
+          if (startDate) query = query.gte("date_of_death", startDate);
+          if (endDate) query = query.lte("date_of_death", endDate);
+
+          query = query.range(from, from + pageSize - 1).order("date_of_death", { ascending: true });
+
+          const { data, error } = await query;
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allData.push(...data);
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const enriched = allData.map((c: any) => ({
           ...c,
           total_balance_due: (c.total_sale || 0) - (c.payments_received || 0)
         }));
