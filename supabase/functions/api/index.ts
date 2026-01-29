@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
     // CASES
     if (resource === "cases") {
       if (req.method === "GET" && !resourceId) {
-        let query = supabase.from("cases_enriched").select("*");
+        let query = supabase.from("cases_enriched").select("*", { count: 'exact' });
 
         if (!isAdmin && currentUser.director_id) {
           query = query.eq("director_id", currentUser.director_id);
@@ -200,6 +200,8 @@ Deno.serve(async (req: Request) => {
         if (directorId && isAdmin) query = query.eq("director_id", directorId);
         if (startDate) query = query.gte("date_of_death", startDate);
         if (endDate) query = query.lte("date_of_death", endDate);
+
+        query = query.range(0, 99999);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -382,6 +384,8 @@ Deno.serve(async (req: Request) => {
         if (endDate) query = query.lte("date_of_death", endDate);
         if (directorId && isAdmin && directorId !== "all") query = query.eq("director_id", directorId);
 
+        query = query.range(0, 99999);
+
         const { data: cases } = await query;
         const { data: directors } = await supabase.from("directors").select("*").eq("is_active", true);
 
@@ -487,6 +491,8 @@ Deno.serve(async (req: Request) => {
 
         if (startDate) query = query.gte("date_of_death", startDate);
         if (endDate) query = query.lte("date_of_death", endDate);
+
+        query = query.range(0, 99999);
 
         const { data: cases } = await query;
         const enrichedCases = cases?.map((c: any) => ({
