@@ -7,10 +7,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Calendar } from '../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { DateInput } from '../components/ui/date-input';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, CalendarIcon, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 
 const CaseDetailPage = () => {
   const { id } = useParams();
@@ -204,27 +203,13 @@ const CaseDetailPage = () => {
 
                 <div className="space-y-2">
                   <Label>Date of Death *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal h-11"
-                        disabled={!canEditCases}
-                        data-testid="date-of-death-btn"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_of_death ? format(parseISO(formData.date_of_death), 'PPP') : 'Select date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date_of_death ? parseISO(formData.date_of_death) : undefined}
-                        onSelect={(date) => handleChange('date_of_death', date ? format(date, 'yyyy-MM-dd') : '')}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DateInput
+                    value={formData.date_of_death ? parseISO(formData.date_of_death) : undefined}
+                    onChange={(date) => handleChange('date_of_death', date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="MM/DD/YYYY"
+                    disabled={!canEditCases}
+                    data-testid="date-of-death-input"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -359,26 +344,12 @@ const CaseDetailPage = () => {
 
                 <div className="space-y-2">
                   <Label>Date Paid in Full</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal h-11"
-                        disabled={!canEditCases}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_paid_in_full ? format(parseISO(formData.date_paid_in_full), 'PPP') : 'Not paid'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date_paid_in_full ? parseISO(formData.date_paid_in_full) : undefined}
-                        onSelect={(date) => handleChange('date_paid_in_full', date ? format(date, 'yyyy-MM-dd') : '')}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DateInput
+                    value={formData.date_paid_in_full ? parseISO(formData.date_paid_in_full) : undefined}
+                    onChange={(date) => handleChange('date_paid_in_full', date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="MM/DD/YYYY"
+                    disabled={!canEditCases}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -426,27 +397,13 @@ const CaseDetailPage = () => {
 
                 <div className="space-y-2">
                   <Label>Date Paid in Full</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                        disabled={!canEditCases}
-                        data-testid="pif-date-btn"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_paid_in_full ? format(parseISO(formData.date_paid_in_full), 'PPP') : 'Not paid'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date_paid_in_full ? parseISO(formData.date_paid_in_full) : undefined}
-                        onSelect={(date) => handleChange('date_paid_in_full', date ? format(date, 'yyyy-MM-dd') : '')}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DateInput
+                    value={formData.date_paid_in_full ? parseISO(formData.date_paid_in_full) : undefined}
+                    onChange={(date) => handleChange('date_paid_in_full', date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="MM/DD/YYYY"
+                    disabled={!canEditCases}
+                    data-testid="pif-date-input"
+                  />
                 </div>
 
                 {canEditCases && (

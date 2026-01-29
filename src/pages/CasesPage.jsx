@@ -7,15 +7,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Calendar } from '../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Badge } from '../components/ui/badge';
+import { DateInput } from '../components/ui/date-input';
 import { format } from 'date-fns';
 import {
   Plus,
   Search,
-  CalendarIcon,
   Eye,
   Edit,
   Trash2,
@@ -384,39 +382,21 @@ const CasesPage = () => {
               </Select>
             )}
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="w-[140px]" data-testid="start-date-filter">
-                  <CalendarIcon className="w-4 h-4 mr-2" />
-                  {format(filters.start_date, 'MMM d, yyyy')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={filters.start_date}
-                  onSelect={(date) => date && setFilters(f => ({ ...f, start_date: date }))}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={filters.start_date}
+              onChange={(date) => date && setFilters(f => ({ ...f, start_date: date }))}
+              className="w-[160px]"
+              data-testid="start-date-filter"
+            />
 
             <span className="text-slate-400">to</span>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="w-[140px]" data-testid="end-date-filter">
-                  <CalendarIcon className="w-4 h-4 mr-2" />
-                  {format(filters.end_date, 'MMM d, yyyy')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={filters.end_date}
-                  onSelect={(date) => date && setFilters(f => ({ ...f, end_date: date }))}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={filters.end_date}
+              onChange={(date) => date && setFilters(f => ({ ...f, end_date: date }))}
+              className="w-[160px]"
+              data-testid="end-date-filter"
+            />
           </div>
         </CardContent>
       </Card>
@@ -461,39 +441,23 @@ const CasesPage = () => {
 
             <div className="space-y-2">
               <Label>Date Range</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start h-12">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      {format(tempFilters.start_date, 'MMM d, yyyy')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={tempFilters.start_date}
-                      onSelect={(date) => date && setTempFilters(f => ({ ...f, start_date: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start h-12">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      {format(tempFilters.end_date, 'MMM d, yyyy')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={tempFilters.end_date}
-                      onSelect={(date) => date && setTempFilters(f => ({ ...f, end_date: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-slate-500 mb-1.5">Start Date</Label>
+                  <DateInput
+                    value={tempFilters.start_date}
+                    onChange={(date) => date && setTempFilters(f => ({ ...f, start_date: date }))}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 mb-1.5">End Date</Label>
+                  <DateInput
+                    value={tempFilters.end_date}
+                    onChange={(date) => date && setTempFilters(f => ({ ...f, end_date: date }))}
+                    className="w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>
