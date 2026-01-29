@@ -60,12 +60,18 @@ const ImportPage = () => {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to import file');
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response:', jsonError);
+        throw new Error('Invalid response from server. Please try again.');
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to import file');
+      }
+
       setResult(data);
 
       if (data.imported > 0) {
