@@ -132,22 +132,6 @@ const LoginPage = () => {
                   )}
                 </Button>
               </form>
-
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                <p className="text-xs text-slate-500 text-center mb-3">Demo Credentials</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-50 p-2 rounded">
-                    <p className="font-medium text-slate-700">Admin</p>
-                    <p className="text-slate-500">admin@behmfuneral.com</p>
-                    <p className="text-slate-500">admin123</p>
-                  </div>
-                  <div className="bg-slate-50 p-2 rounded">
-                    <p className="font-medium text-slate-700">Director</p>
-                    <p className="text-slate-500">eric@behmfuneral.com</p>
-                    <p className="text-slate-500">director123</p>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
