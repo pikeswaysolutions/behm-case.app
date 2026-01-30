@@ -78,7 +78,11 @@ const CasesPage = () => {
       params.append('end_date', filters.end_date);
 
       const response = await api().get(`/cases?${params.toString()}`);
-      setCases(response.data);
+      const casesWithAge = response.data.map(c => ({
+        ...c,
+        age: calculateAge(c.date_of_death, c.date_paid_in_full)
+      }));
+      setCases(casesWithAge);
     } catch (error) {
       console.error('Error fetching cases:', error);
       toast.error('Failed to load cases');
@@ -647,7 +651,7 @@ const CasesPage = () => {
                       <SortableHeader column="director_name" label="Director" className="text-left" />
                       <SortableHeader column="date_paid_in_full" label="Date PIF" className="text-left" />
                       <SortableHeader column="payments_received" label="Payments" className="text-right" />
-                      <SortableHeader column="average_age" label="Age" className="text-right" />
+                      <SortableHeader column="age" label="Age" className="text-right" />
                       <SortableHeader column="total_sale" label="Total Sale" className="text-right" />
                       <SortableHeader column="total_balance_due" label="Balance" className="text-right" />
                       <th className="py-3 px-3 text-center text-xs font-semibold text-slate-700">Actions</th>
