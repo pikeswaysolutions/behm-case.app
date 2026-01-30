@@ -18,7 +18,10 @@ import {
   Users,
   SlidersHorizontal,
   Loader2,
-  Eye
+  Eye,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -60,6 +63,10 @@ const ReportsPage = () => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [cases, setCases] = useState([]);
+  const [directorSortField, setDirectorSortField] = useState('director_name');
+  const [directorSortDirection, setDirectorSortDirection] = useState('asc');
+  const [casesSortField, setCasesSortField] = useState('case_number');
+  const [casesSortDirection, setCasesSortDirection] = useState('asc');
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
@@ -158,6 +165,52 @@ const ReportsPage = () => {
         total_balance_due: acc.total_balance_due + m.total_balance_due,
         average_age: m.average_age
       }), { case_count: 0, total_sales: 0, payments_received: 0, total_balance_due: 0, average_age: 0 });
+
+  const sortDirectors = (field) => {
+    if (directorSortField === field) {
+      setDirectorSortDirection(directorSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setDirectorSortField(field);
+      setDirectorSortDirection('asc');
+    }
+  };
+
+  const sortedDirectorMetrics = [...filteredMetrics].sort((a, b) => {
+    const aVal = a[directorSortField] || 0;
+    const bVal = b[directorSortField] || 0;
+
+    let comparison = 0;
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      comparison = aVal - bVal;
+    } else {
+      comparison = String(aVal).localeCompare(String(bVal));
+    }
+
+    return directorSortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  const sortCases = (field) => {
+    if (casesSortField === field) {
+      setCasesSortDirection(casesSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setCasesSortField(field);
+      setCasesSortDirection('asc');
+    }
+  };
+
+  const sortedCases = [...cases].sort((a, b) => {
+    const aVal = a[casesSortField] || 0;
+    const bVal = b[casesSortField] || 0;
+
+    let comparison = 0;
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      comparison = aVal - bVal;
+    } else {
+      comparison = String(aVal).localeCompare(String(bVal));
+    }
+
+    return casesSortDirection === 'asc' ? comparison : -comparison;
+  });
 
   const chartOptions = {
     responsive: true,
@@ -308,6 +361,28 @@ const ReportsPage = () => {
         setExportingPDF(false);
       }
     }
+  };
+
+  const SortableHeaderCell = ({ field, label, isCasesTable = false, className = '', textAlign = 'left' }) => {
+    const sortField = isCasesTable ? casesSortField : directorSortField;
+    const sortDirection = isCasesTable ? casesSortDirection : directorSortDirection;
+    const handleSort = isCasesTable ? sortCases : sortDirectors;
+
+    return (
+      <th
+        className={`py-3 px-3 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap ${className}`}
+        onClick={() => handleSort(field)}
+      >
+        <div className={`flex items-center gap-1 ${textAlign === 'right' ? 'justify-end' : ''}`}>
+          {label}
+          {sortField === field ? (
+            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+          )}
+        </div>
+      </th>
+    );
   };
 
   const MetricCard = ({ label, value, icon: Icon, bgColor, iconColor }) => (
@@ -630,16 +705,16 @@ const ReportsPage = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="data-table-header">
-                      <th className="text-left py-3 px-4">Director</th>
-                      <th className="text-right py-3 px-4">Cases</th>
-                      <th className="text-right py-3 px-4">Avg Age</th>
-                      <th className="text-right py-3 px-4">Total Sales</th>
-                      <th className="text-right py-3 px-4">Payments</th>
-                      <th className="text-right py-3 px-4">Balance</th>
+                      <SortableHeaderCell field="director_name" label="Director" textAlign="left" />
+                      <SortableHeaderCell field="case_count" label="Cases" textAlign="right" className="text-right" />
+                      <SortableHeaderCell field="average_age" label="Avg Age" textAlign="right" className="text-right" />
+                      <SortableHeaderCell field="total_sales" label="Total Sales" textAlign="right" className="text-right" />
+                      <SortableHeaderCell field="payments_received" label="Payments" textAlign="right" className="text-right" />
+                      <SortableHeaderCell field="total_balance_due" label="Balance" textAlign="right" className="text-right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMetrics.map((m, i) => (
+                    {sortedDirectorMetrics.map((m, i) => (
                       <tr key={m.director_id || i} className="data-table-row">
                         <td className="py-3 px-4 font-medium">{m.director_name}</td>
                         <td className="py-3 px-4 text-right">{m.case_count}</td>
@@ -678,20 +753,20 @@ const ReportsPage = () => {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-y border-slate-200">
                   <tr>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Case #</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Date of Death</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Customer</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Service</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Director</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Age</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Total Sale</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Payments</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Balance</th>
+                    <SortableHeaderCell field="case_number" label="Case #" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="date_of_death" label="Date of Death" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="customer_first_name" label="Customer" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="service_type_name" label="Service" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="director_name" label="Director" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="age" label="Age" isCasesTable textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="total_sale" label="Total Sale" isCasesTable textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="payments_received" label="Payments" isCasesTable textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="total_balance_due" label="Balance" isCasesTable textAlign="right" className="text-right" />
                     <th className="text-center py-3 px-3 text-xs font-semibold text-slate-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cases.slice(0, 100).map((c, idx) => (
+                  {sortedCases.slice(0, 100).map((c, idx) => (
                     <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-2 px-3 font-medium text-primary">{c.case_number}</td>
                       <td className="py-2 px-3">{c.date_of_death}</td>
