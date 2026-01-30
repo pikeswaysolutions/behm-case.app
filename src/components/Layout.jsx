@@ -8,7 +8,6 @@ import {
   UserCog,
   Settings,
   BarChart3,
-  Upload,
   LogOut,
   ChevronDown,
   MoreHorizontal,
@@ -52,7 +51,6 @@ const Layout = ({ children }) => {
     { path: '/users', label: 'Users', icon: UserCog },
     { path: '/service-types', label: 'Service Types', icon: Settings },
     { path: '/sale-types', label: 'Sale Types', icon: Settings },
-    { path: '/import', label: 'Import Data', icon: Upload },
   ];
 
   const NavLink = ({ item, onClick }) => {

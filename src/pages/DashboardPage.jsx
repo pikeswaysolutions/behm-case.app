@@ -7,7 +7,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
+import { Checkbox } from '../components/ui/checkbox';
 import { exportDashboardToPDF, downloadPDF } from '../lib/pdfExport';
+import { calculateAge } from '../lib/dateUtils';
+import { savePreference, loadPreference, PreferenceKeys } from '../lib/preferences';
 import {
   FileText,
   DollarSign,
@@ -16,7 +19,9 @@ import {
   RefreshCw,
   Download,
   SlidersHorizontal,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -61,6 +66,18 @@ const DashboardPage = () => {
     startDate: '2017-01-01',
     endDate: new Date().toISOString().split('T')[0]
   });
+  const [openCases, setOpenCases] = useState([]);
+  const [sortField, setSortField] = useState('age');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [chartVisibility, setChartVisibility] = useState({
+    salesPayments: true,
+    caseVolume: true,
+    aging: true
+  });
+  const [lineVisibility, setLineVisibility] = useState({
+    sales: true,
+    payments: true
+  });
 
   const metricsRef = useRef(null);
   const chartsRef = useRef(null);
@@ -96,10 +113,76 @@ const DashboardPage = () => {
     }
   }, [api]);
 
+  const fetchOpenCases = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+      params.append('paid_in_full', 'false');
+      if (selectedDirector !== 'all') {
+        params.append('director_id', selectedDirector);
+      }
+
+      const response = await api().get(`/cases?${params.toString()}`);
+      const casesWithAge = response.data.map(c => ({
+        ...c,
+        age: calculateAge(c.date_of_death, c.date_paid_in_full)
+      }));
+      setOpenCases(casesWithAge);
+    } catch (error) {
+      console.error('Error fetching open cases:', error);
+    }
+  }, [api, startDate, endDate, selectedDirector]);
+
+  const loadPreferences = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const chartVis = await loadPreference(user.id, PreferenceKeys.DASHBOARD_CHART_VISIBILITY, { salesPayments: true, caseVolume: true, aging: true });
+      const lineVis = await loadPreference(user.id, PreferenceKeys.DASHBOARD_SALES_PAYMENTS_LINES, { sales: true, payments: true });
+
+      setChartVisibility(chartVis);
+      setLineVisibility(lineVis);
+    } catch (error) {
+      console.error('Error loading preferences:', error);
+    }
+  }, [user]);
+
+  const toggleChartVisibility = async (chartKey) => {
+    const newVisibility = { ...chartVisibility, [chartKey]: !chartVisibility[chartKey] };
+    setChartVisibility(newVisibility);
+
+    if (user?.id) {
+      try {
+        await savePreference(user.id, PreferenceKeys.DASHBOARD_CHART_VISIBILITY, newVisibility);
+      } catch (error) {
+        console.error('Error saving chart visibility preference:', error);
+      }
+    }
+  };
+
+  const toggleLineVisibility = async (lineKey) => {
+    const newVisibility = { ...lineVisibility, [lineKey]: !lineVisibility[lineKey] };
+    setLineVisibility(newVisibility);
+
+    if (user?.id) {
+      try {
+        await savePreference(user.id, PreferenceKeys.DASHBOARD_SALES_PAYMENTS_LINES, newVisibility);
+      } catch (error) {
+        console.error('Error saving line visibility preference:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
+
   useEffect(() => {
     fetchDashboard();
     fetchDirectors();
-  }, [fetchDashboard, fetchDirectors]);
+    fetchOpenCases();
+  }, [fetchDashboard, fetchDirectors, fetchOpenCases]);
 
   const handleExportCSV = async () => {
     try {
@@ -229,22 +312,22 @@ const DashboardPage = () => {
   const salesChartData = {
     labels: dashboardData?.time_series?.map(t => t.period) || [],
     datasets: [
-      {
+      ...(lineVisibility.sales ? [{
         label: 'Total Sales',
         data: dashboardData?.time_series?.map(t => t.sales) || [],
         borderColor: '#1B2A41',
         backgroundColor: 'rgba(27, 42, 65, 0.1)',
         fill: true,
         tension: 0.4
-      },
-      {
+      }] : []),
+      ...(lineVisibility.payments ? [{
         label: 'Payments Received',
         data: dashboardData?.time_series?.map(t => t.payments) || [],
         borderColor: '#C5A059',
         backgroundColor: 'rgba(197, 160, 89, 0.1)',
         fill: true,
         tension: 0.4
-      }
+      }] : [])
     ]
   };
 
@@ -259,6 +342,58 @@ const DashboardPage = () => {
       }
     ]
   };
+
+  const calculateAgingDistribution = () => {
+    const buckets = {
+      '0-30': 0,
+      '31-60': 0,
+      '61-90': 0,
+      '91-180': 0,
+      '181-365': 0,
+      '365+': 0
+    };
+
+    openCases.forEach(c => {
+      const age = c.age || 0;
+      if (age <= 30) buckets['0-30']++;
+      else if (age <= 60) buckets['31-60']++;
+      else if (age <= 90) buckets['61-90']++;
+      else if (age <= 180) buckets['91-180']++;
+      else if (age <= 365) buckets['181-365']++;
+      else buckets['365+']++;
+    });
+
+    return buckets;
+  };
+
+  const agingDistribution = calculateAgingDistribution();
+
+  const agingChartData = {
+    labels: Object.keys(agingDistribution).map(key => `${key} days`),
+    datasets: [
+      {
+        label: 'Open Cases',
+        data: Object.values(agingDistribution),
+        backgroundColor: '#C5A059',
+        borderRadius: 4
+      }
+    ]
+  };
+
+  const sortOpenCases = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedOpenCases = [...openCases].sort((a, b) => {
+    const aVal = a[sortField] || 0;
+    const bVal = b[sortField] || 0;
+    return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+  });
 
   const MetricCard = ({ label, value, icon: Icon, bgColor, iconColor }) => (
     <Card className="metric-card">
@@ -513,29 +648,109 @@ const DashboardPage = () => {
         />
       </div>
 
+      {/* Chart Visibility Controls */}
+      <Card className="border-slate-200">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-6">
+            <span className="text-sm font-medium text-slate-700">Chart Visibility:</span>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="chart-sales-payments"
+                checked={chartVisibility.salesPayments}
+                onCheckedChange={() => toggleChartVisibility('salesPayments')}
+              />
+              <label htmlFor="chart-sales-payments" className="text-sm text-slate-600 cursor-pointer">
+                Sales & Payments
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="chart-case-volume"
+                checked={chartVisibility.caseVolume}
+                onCheckedChange={() => toggleChartVisibility('caseVolume')}
+              />
+              <label htmlFor="chart-case-volume" className="text-sm text-slate-600 cursor-pointer">
+                Case Volume
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="chart-aging"
+                checked={chartVisibility.aging}
+                onCheckedChange={() => toggleChartVisibility('aging')}
+              />
+              <label htmlFor="chart-aging" className="text-sm text-slate-600 cursor-pointer">
+                Case Aging
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Charts - Stack on mobile */}
       <div ref={chartsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <Card className="chart-container">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] lg:h-[300px]">
-              <Line data={salesChartData} options={chartOptions} />
-            </div>
-          </CardContent>
-        </Card>
+        {chartVisibility.salesPayments && (
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
+                <div className="flex gap-3 items-center">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="line-sales"
+                      checked={lineVisibility.sales}
+                      onCheckedChange={() => toggleLineVisibility('sales')}
+                    />
+                    <label htmlFor="line-sales" className="text-xs text-slate-600 cursor-pointer">
+                      Sales
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="line-payments"
+                      checked={lineVisibility.payments}
+                      onCheckedChange={() => toggleLineVisibility('payments')}
+                    />
+                    <label htmlFor="line-payments" className="text-xs text-slate-600 cursor-pointer">
+                      Payments
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Line data={salesChartData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="chart-container">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base lg:text-lg font-semibold">Cases by Period</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] lg:h-[300px]">
-              <Bar data={casesChartData} options={chartOptions} />
-            </div>
-          </CardContent>
-        </Card>
+        {chartVisibility.caseVolume && (
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Cases by Period</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Bar data={casesChartData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {chartVisibility.aging && (
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Case Aging Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Bar data={agingChartData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Director Breakdown (Admin Only) */}
@@ -609,6 +824,82 @@ const DashboardPage = () => {
                   </div>
                 </div>
               </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Open Cases Section */}
+      {isAdmin && openCases.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base lg:text-lg font-semibold">Open Cases (Not Paid in Full)</CardTitle>
+            <p className="text-sm text-slate-500 mt-1">{openCases.length} cases with outstanding balances</p>
+          </CardHeader>
+          <CardContent>
+            {/* Desktop Table */}
+            <div className="overflow-x-auto hidden lg:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="data-table-header">
+                    <th className="text-left py-3 px-4">Case Number</th>
+                    <th className="text-left py-3 px-4">Customer</th>
+                    <th className="text-left py-3 px-4">Director</th>
+                    <th className="text-right py-3 px-4 cursor-pointer" onClick={() => sortOpenCases('age')}>
+                      Age {sortField === 'age' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="text-right py-3 px-4">Total Sale</th>
+                    <th className="text-right py-3 px-4">Payments</th>
+                    <th className="text-right py-3 px-4">Balance Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedOpenCases.map((c) => (
+                    <tr key={c.id} className="data-table-row">
+                      <td className="py-3 px-4 font-medium">{c.case_number}</td>
+                      <td className="py-3 px-4">{c.customer_first_name} {c.customer_last_name}</td>
+                      <td className="py-3 px-4">{c.director_name}</td>
+                      <td className="py-3 px-4 text-right">{c.age || 0}</td>
+                      <td className="py-3 px-4 text-right">${(c.total_sale || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 px-4 text-right">${(c.payments_received || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 px-4 text-right text-amber-600">${(c.total_balance_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-3">
+              {sortedOpenCases.map((c) => (
+                <Card key={c.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{c.case_number}</h4>
+                      <p className="text-sm text-slate-500">{c.customer_first_name} {c.customer_last_name}</p>
+                    </div>
+                    <span className="text-sm font-medium text-slate-600">{c.age || 0} days</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Director</span>
+                      <span className="font-medium">{c.director_name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Total Sale</span>
+                      <span className="font-medium">${(c.total_sale || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Payments</span>
+                      <span className="font-medium">${(c.payments_received || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Balance Due</span>
+                      <span className="font-medium text-amber-600">${(c.total_balance_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

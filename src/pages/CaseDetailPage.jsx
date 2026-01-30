@@ -33,7 +33,6 @@ const CaseDetailPage = () => {
     director_id: '',
     date_paid_in_full: '',
     payments_received: 0,
-    average_age: '',
     total_sale: 0
   });
 
@@ -67,7 +66,6 @@ const CaseDetailPage = () => {
         director_id: response.data.director_id || '',
         date_paid_in_full: response.data.date_paid_in_full || '',
         payments_received: response.data.payments_received || 0,
-        average_age: response.data.average_age || '',
         total_sale: response.data.total_sale || 0
       });
     } catch (error) {
@@ -97,7 +95,6 @@ const CaseDetailPage = () => {
         ...formData,
         payments_received: parseFloat(formData.payments_received) || 0,
         total_sale: parseFloat(formData.total_sale) || 0,
-        average_age: formData.average_age ? parseFloat(formData.average_age) : null,
         date_paid_in_full: formData.date_paid_in_full || null
       };
 
@@ -290,20 +287,6 @@ const CaseDetailPage = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="average_age">Average Age</Label>
-                  <Input
-                    id="average_age"
-                    type="number"
-                    inputMode="numeric"
-                    value={formData.average_age}
-                    onChange={(e) => handleChange('average_age', e.target.value)}
-                    disabled={!canEditCases}
-                    className="h-11"
-                    data-testid="avg-age-input"
-                  />
                 </div>
               </CardContent>
             </Card>

@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
 import { exportReportsToPDF, downloadPDF } from '../lib/pdfExport';
+import { calculateAge, formatAge } from '../lib/dateUtils';
 import {
   Download,
   RefreshCw,
@@ -16,7 +17,8 @@ import {
   TrendingUp,
   Users,
   SlidersHorizontal,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -57,6 +59,7 @@ const ReportsPage = () => {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [cases, setCases] = useState([]);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
@@ -75,6 +78,9 @@ const ReportsPage = () => {
       params.append('start_date', startDate);
       params.append('end_date', endDate);
       params.append('grouping', grouping);
+      if (selectedDirector !== 'all') {
+        params.append('director_id', selectedDirector);
+      }
 
       const response = await api().get(`/reports/dashboard?${params.toString()}`);
       setData(response.data);
@@ -84,7 +90,7 @@ const ReportsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [api, startDate, endDate, grouping]);
+  }, [api, startDate, endDate, grouping, selectedDirector]);
 
   const fetchDirectors = useCallback(async () => {
     try {
@@ -95,10 +101,31 @@ const ReportsPage = () => {
     }
   }, [api]);
 
+  const fetchCases = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+      if (selectedDirector !== 'all') {
+        params.append('director_id', selectedDirector);
+      }
+
+      const response = await api().get(`/cases?${params.toString()}`);
+      const casesWithAge = response.data.map(c => ({
+        ...c,
+        age: calculateAge(c.date_of_death, c.date_paid_in_full)
+      }));
+      setCases(casesWithAge);
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+    }
+  }, [api, startDate, endDate, selectedDirector]);
+
   useEffect(() => {
     fetchData();
     fetchDirectors();
-  }, [fetchData, fetchDirectors]);
+    fetchCases();
+  }, [fetchData, fetchDirectors, fetchCases]);
 
   const openFilterSheet = () => {
     setTempFilters({
@@ -190,6 +217,47 @@ const ReportsPage = () => {
       backgroundColor: ['#1B2A41', '#C5A059', '#64748B', '#2C3E50', '#94A3B8'],
       borderWidth: 0
     }]
+  };
+
+  const calculateAgingDistribution = () => {
+    const buckets = {
+      '0-30': 0,
+      '31-60': 0,
+      '61-90': 0,
+      '91-180': 0,
+      '181-365': 0,
+      '365+': 0
+    };
+
+    cases.filter(c => !c.date_paid_in_full).forEach(c => {
+      const age = c.age || 0;
+      if (age <= 30) buckets['0-30']++;
+      else if (age <= 60) buckets['31-60']++;
+      else if (age <= 90) buckets['61-90']++;
+      else if (age <= 180) buckets['91-180']++;
+      else if (age <= 365) buckets['181-365']++;
+      else buckets['365+']++;
+    });
+
+    return buckets;
+  };
+
+  const agingDistribution = calculateAgingDistribution();
+
+  const agingChartData = {
+    labels: Object.keys(agingDistribution).map(key => `${key} days`),
+    datasets: [
+      {
+        label: 'Open Cases',
+        data: Object.values(agingDistribution),
+        backgroundColor: '#C5A059',
+        borderRadius: 4
+      }
+    ]
+  };
+
+  const formatCurrency = (val) => {
+    return '$' + (Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const handleExport = async (type) => {
@@ -515,6 +583,17 @@ const ReportsPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="chart-container">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base lg:text-lg font-semibold">Case Aging Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px] lg:h-[300px]">
+              <Bar data={agingChartData} options={chartOptions} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Director Distribution */}
@@ -584,6 +663,103 @@ const ReportsPage = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Cases Table */}
+      {cases.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base lg:text-lg font-semibold">All Cases</CardTitle>
+            <p className="text-sm text-slate-500 mt-1">{cases.length} cases in selected period</p>
+          </CardHeader>
+          <CardContent>
+            {/* Desktop Table */}
+            <div className="overflow-x-auto hidden lg:block">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-y border-slate-200">
+                  <tr>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Case #</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Date of Death</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Customer</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Service</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-slate-700">Director</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Age</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Total Sale</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Payments</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-slate-700">Balance</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-slate-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cases.slice(0, 100).map((c, idx) => (
+                    <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                      <td className="py-2 px-3 font-medium text-primary">{c.case_number}</td>
+                      <td className="py-2 px-3">{c.date_of_death}</td>
+                      <td className="py-2 px-3">{c.customer_first_name} {c.customer_last_name}</td>
+                      <td className="py-2 px-3">{c.service_type_name || '-'}</td>
+                      <td className="py-2 px-3">{c.director_name || '-'}</td>
+                      <td className="py-2 px-3 text-right">{formatAge(c.age)}</td>
+                      <td className="py-2 px-3 text-right">{formatCurrency(c.total_sale)}</td>
+                      <td className="py-2 px-3 text-right">{formatCurrency(c.payments_received)}</td>
+                      <td className="py-2 px-3 text-right">{formatCurrency(c.total_balance_due)}</td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => window.open(`/cases/${c.id}`, '_blank')}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {cases.length > 100 && (
+                <div className="mt-4 text-center text-sm text-slate-500">
+                  Showing first 100 of {cases.length} cases
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-3">
+              {cases.slice(0, 20).map((c) => (
+                <Card key={c.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{c.case_number}</h4>
+                      <p className="text-sm text-slate-500">{c.customer_first_name} {c.customer_last_name}</p>
+                    </div>
+                    <span className="text-sm font-medium text-slate-600">{formatAge(c.age)} days</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Director</span>
+                      <span className="font-medium">{c.director_name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Total Sale</span>
+                      <span className="font-medium">{formatCurrency(c.total_sale)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Balance Due</span>
+                      <span className="font-medium text-amber-600">{formatCurrency(c.total_balance_due)}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              {cases.length > 20 && (
+                <div className="text-center text-sm text-slate-500">
+                  Showing first 20 of {cases.length} cases
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

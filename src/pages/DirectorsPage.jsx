@@ -37,6 +37,7 @@ const DirectorsPage = () => {
   const { api } = useAuth();
   const [loading, setLoading] = useState(true);
   const [directors, setDirectors] = useState([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [reassignDialog, setReassignDialog] = useState(null);
@@ -173,10 +174,27 @@ const DirectorsPage = () => {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="show-active" className="text-sm font-medium">Show:</Label>
+            <Select value={showActiveOnly ? 'active' : 'all'} onValueChange={(v) => setShowActiveOnly(v === 'active')}>
+              <SelectTrigger className="w-[180px]" id="show-active">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="all">All Directors</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Desktop Table */}
       <Card className="hidden lg:block">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{directors.length} Directors</CardTitle>
+          <CardTitle>{directors.filter(d => !showActiveOnly || d.is_active).length} Directors</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchDirectors}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -186,7 +204,7 @@ const DirectorsPage = () => {
             <div className="flex items-center justify-center py-12">
               <div className="spinner w-8 h-8"></div>
             </div>
-          ) : directors.length === 0 ? (
+          ) : directors.filter(d => !showActiveOnly || d.is_active).length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-500">No directors found</p>
             </div>
@@ -202,7 +220,7 @@ const DirectorsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {directors.map((d) => (
+                  {directors.filter(d => !showActiveOnly || d.is_active).map((d) => (
                     <tr key={d.id} className="data-table-row">
                       <td className="py-3 px-4 font-medium">{d.name}</td>
                       <td className="py-3 px-4 text-center">
@@ -252,7 +270,7 @@ const DirectorsPage = () => {
       {/* Mobile Cards */}
       <div className="lg:hidden space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-slate-700">{directors.length} Directors</p>
+          <p className="text-sm font-medium text-slate-700">{directors.filter(d => !showActiveOnly || d.is_active).length} Directors</p>
           <Button variant="ghost" size="sm" onClick={fetchDirectors}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -262,12 +280,12 @@ const DirectorsPage = () => {
           <div className="flex items-center justify-center py-12">
             <div className="spinner w-8 h-8"></div>
           </div>
-        ) : directors.length === 0 ? (
+        ) : directors.filter(d => !showActiveOnly || d.is_active).length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-slate-500">No directors found</p>
           </Card>
         ) : (
-          directors.map((d) => (
+          directors.filter(d => !showActiveOnly || d.is_active).map((d) => (
             <DirectorCard key={d.id} director={d} />
           ))
         )}

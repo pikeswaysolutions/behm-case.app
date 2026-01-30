@@ -37,6 +37,7 @@ const UsersPage = () => {
   const { api } = useAuth();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [directors, setDirectors] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -219,10 +220,27 @@ const UsersPage = () => {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="show-active-users" className="text-sm font-medium">Show:</Label>
+            <Select value={showActiveOnly ? 'active' : 'all'} onValueChange={(v) => setShowActiveOnly(v === 'active')}>
+              <SelectTrigger className="w-[180px]" id="show-active-users">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Desktop Table */}
       <Card className="hidden lg:block">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{users.length} Users</CardTitle>
+          <CardTitle>{users.filter(u => !showActiveOnly || u.is_active).length} Users</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchUsers}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -232,7 +250,7 @@ const UsersPage = () => {
             <div className="flex items-center justify-center py-12">
               <div className="spinner w-8 h-8"></div>
             </div>
-          ) : users.length === 0 ? (
+          ) : users.filter(u => !showActiveOnly || u.is_active).length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-500">No users found</p>
             </div>
@@ -251,7 +269,7 @@ const UsersPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {users.filter(u => !showActiveOnly || u.is_active).map((u) => (
                     <tr key={u.id} className="data-table-row">
                       <td className="py-3 px-4 font-medium">{u.name}</td>
                       <td className="py-3 px-4 text-slate-500">{u.email}</td>
@@ -307,7 +325,7 @@ const UsersPage = () => {
       {/* Mobile Cards */}
       <div className="lg:hidden space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-slate-700">{users.length} Users</p>
+          <p className="text-sm font-medium text-slate-700">{users.filter(u => !showActiveOnly || u.is_active).length} Users</p>
           <Button variant="ghost" size="sm" onClick={fetchUsers}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -317,12 +335,12 @@ const UsersPage = () => {
           <div className="flex items-center justify-center py-12">
             <div className="spinner w-8 h-8"></div>
           </div>
-        ) : users.length === 0 ? (
+        ) : users.filter(u => !showActiveOnly || u.is_active).length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-slate-500">No users found</p>
           </Card>
         ) : (
-          users.map((u) => (
+          users.filter(u => !showActiveOnly || u.is_active).map((u) => (
             <UserCard key={u.id} user={u} />
           ))
         )}

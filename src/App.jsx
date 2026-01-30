@@ -14,7 +14,6 @@ import UsersPage from './pages/UsersPage';
 import ServiceTypesPage from './pages/ServiceTypesPage';
 import SaleTypesPage from './pages/SaleTypesPage';
 import ReportsPage from './pages/ReportsPage';
-import ImportPage from './pages/ImportPage';
 import DataTablePage from './pages/DataTablePage';
 import Layout from './components/Layout';
 
@@ -136,14 +135,6 @@ const AppRoutes = () => {
             <DataTablePage />
           </ProtectedRoute>
         }
-      />
-      <Route 
-        path="/import" 
-        element={
-          <ProtectedRoute adminOnly>
-            <ImportPage />
-          </ProtectedRoute>
-        } 
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

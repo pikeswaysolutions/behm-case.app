@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ const ServiceTypesPage = () => {
   const { api } = useAuth();
   const [loading, setLoading] = useState(true);
   const [types, setTypes] = useState([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [editingType, setEditingType] = useState(null);
@@ -109,8 +111,25 @@ const ServiceTypesPage = () => {
       </div>
 
       <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="show-active-types" className="text-sm font-medium">Show:</Label>
+            <Select value={showActiveOnly ? 'active' : 'all'} onValueChange={(v) => setShowActiveOnly(v === 'active')}>
+              <SelectTrigger className="w-[180px]" id="show-active-types">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{types.length} Service Types</CardTitle>
+          <CardTitle>{types.filter(t => !showActiveOnly || t.is_active).length} Service Types</CardTitle>
           <Button variant="ghost" size="sm" onClick={fetchTypes}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -120,7 +139,7 @@ const ServiceTypesPage = () => {
             <div className="flex items-center justify-center py-12">
               <div className="spinner w-8 h-8"></div>
             </div>
-          ) : types.length === 0 ? (
+          ) : types.filter(t => !showActiveOnly || t.is_active).length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-500">No service types found</p>
             </div>
@@ -135,7 +154,7 @@ const ServiceTypesPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {types.map((t) => (
+                  {types.filter(t => !showActiveOnly || t.is_active).map((t) => (
                     <tr key={t.id} className="data-table-row">
                       <td className="py-3 px-4 font-medium">{t.name}</td>
                       <td className="py-3 px-4 text-center">

@@ -23,7 +23,9 @@ import {
   ChevronDown,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Check,
+  X
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -59,6 +61,10 @@ const CasesPage = () => {
   });
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'date_of_death', direction: 'desc' });
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saleTypes, setSaleTypes] = useState([]);
   const perPage = 50;
 
   const fetchCases = useCallback(async () => {
@@ -83,12 +89,14 @@ const CasesPage = () => {
 
   const fetchLookups = useCallback(async () => {
     try {
-      const [directorsRes, serviceTypesRes] = await Promise.all([
+      const [directorsRes, serviceTypesRes, saleTypesRes] = await Promise.all([
         api().get('/directors'),
-        api().get('/service-types')
+        api().get('/service-types'),
+        api().get('/sale-types')
       ]);
       setDirectors(directorsRes.data.filter(d => d.is_active));
       setServiceTypes(serviceTypesRes.data.filter(s => s.is_active));
+      setSaleTypes(saleTypesRes.data.filter(s => s.is_active));
     } catch (error) {
       console.error('Error fetching lookups:', error);
     }
@@ -109,6 +117,48 @@ const CasesPage = () => {
       toast.error('Failed to delete case');
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  const startEdit = (caseItem) => {
+    setEditingId(caseItem.id);
+    setEditValues({
+      customer_first_name: caseItem.customer_first_name || '',
+      customer_last_name: caseItem.customer_last_name || '',
+      service_type_id: caseItem.service_type_id || '',
+      sale_type_id: caseItem.sale_type_id || '',
+      director_id: caseItem.director_id || '',
+      payments_received: caseItem.payments_received || 0,
+      total_sale: caseItem.total_sale || 0,
+      date_paid_in_full: caseItem.date_paid_in_full || ''
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      const payload = {
+        ...editValues,
+        payments_received: parseFloat(editValues.payments_received) || 0,
+        total_sale: parseFloat(editValues.total_sale) || 0,
+        date_paid_in_full: editValues.date_paid_in_full || null
+      };
+      await api().put(`/cases/${editingId}`, payload);
+      toast.success('Case updated successfully');
+      setEditingId(null);
+      setEditValues({});
+      fetchCases();
+    } catch (error) {
+      console.error('Error saving case:', error);
+      toast.error(error.response?.data?.detail || 'Failed to save case');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -214,6 +264,14 @@ const CasesPage = () => {
     return '$' + (Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  const formatServiceType = (serviceName) => {
+    if (!serviceName) return '-';
+    const name = serviceName.toLowerCase();
+    if (name.includes('at-need') || name.includes('at need')) return 'A';
+    if (name.includes('preneed') || name.includes('pre-need') || name.includes('pre need')) return 'P';
+    return serviceName.charAt(0).toUpperCase();
+  };
+
   const handleExport = () => {
     const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Director', 'Date PIF', 'Payments Received', 'Age (Days)', 'Total Sale', 'Balance Due'];
     const rows = sortedCases.map(c => [
@@ -303,7 +361,7 @@ const CasesPage = () => {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-slate-500">Service Type</p>
-                  <p className="font-medium">{caseItem.service_type_name || '-'}</p>
+                  <p className="font-semibold text-lg">{formatServiceType(caseItem.service_type_name)}</p>
                 </div>
                 <div>
                   <p className="text-slate-500">Sale Type</p>
@@ -596,56 +654,129 @@ const CasesPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedCases.map((c, idx) => (
-                      <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                        <td className="py-2 px-3 font-medium text-primary">{c.case_number}</td>
-                        <td className="py-2 px-3">{c.date_of_death}</td>
-                        <td className="py-2 px-3">{c.customer_first_name}</td>
-                        <td className="py-2 px-3">{c.customer_last_name}</td>
-                        <td className="py-2 px-3">{c.service_type_name || '-'}</td>
-                        <td className="py-2 px-3">{c.director_name || '-'}</td>
-                        <td className="py-2 px-3">{c.date_paid_in_full || '-'}</td>
-                        <td className="py-2 px-3 text-right">{formatCurrency(c.payments_received)}</td>
-                        <td className="py-2 px-3 text-right">{formatAge(calculateAge(c.date_of_death, c.date_paid_in_full))}</td>
-                        <td className="py-2 px-3 text-right">{formatCurrency(c.total_sale)}</td>
-                        <td className="py-2 px-3 text-right">{formatCurrency(c.total_balance_due)}</td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                              onClick={() => navigate(`/cases/${c.id}`)}
-                              data-testid={`view-case-${c.id}`}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {canEditCases && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={() => navigate(`/cases/${c.id}`)}
-                                data-testid={`edit-case-${c.id}`}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {isAdmin && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                                onClick={() => setDeleteId(c.id)}
-                                data-testid={`delete-case-${c.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {paginatedCases.map((c, idx) => {
+                      const isEditing = editingId === c.id;
+                      return (
+                        <tr key={c.id} className={`border-b border-slate-100 ${isEditing ? 'bg-blue-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} ${!isEditing && 'hover:bg-slate-50'}`}>
+                          <td className="py-2 px-3 font-medium text-primary">{c.case_number}</td>
+                          <td className="py-2 px-3">{c.date_of_death}</td>
+                          <td className="py-2 px-3">
+                            {isEditing ? (
+                              <Input
+                                value={editValues.customer_first_name}
+                                onChange={(e) => setEditValues(v => ({ ...v, customer_first_name: e.target.value }))}
+                                className="h-8 text-sm"
+                              />
+                            ) : c.customer_first_name}
+                          </td>
+                          <td className="py-2 px-3">
+                            {isEditing ? (
+                              <Input
+                                value={editValues.customer_last_name}
+                                onChange={(e) => setEditValues(v => ({ ...v, customer_last_name: e.target.value }))}
+                                className="h-8 text-sm"
+                              />
+                            ) : c.customer_last_name}
+                          </td>
+                          <td className="py-2 px-3 text-center font-semibold">{formatServiceType(c.service_type_name)}</td>
+                          <td className="py-2 px-3">{c.director_name || '-'}</td>
+                          <td className="py-2 px-3">
+                            {isEditing ? (
+                              <Input
+                                type="date"
+                                value={editValues.date_paid_in_full}
+                                onChange={(e) => setEditValues(v => ({ ...v, date_paid_in_full: e.target.value }))}
+                                className="h-8 text-sm w-32"
+                              />
+                            ) : (c.date_paid_in_full || '-')}
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editValues.payments_received}
+                                onChange={(e) => setEditValues(v => ({ ...v, payments_received: e.target.value }))}
+                                className="h-8 text-sm text-right w-24"
+                                step="0.01"
+                              />
+                            ) : formatCurrency(c.payments_received)}
+                          </td>
+                          <td className="py-2 px-3 text-right">{formatAge(calculateAge(c.date_of_death, c.date_paid_in_full))}</td>
+                          <td className="py-2 px-3 text-right">
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editValues.total_sale}
+                                onChange={(e) => setEditValues(v => ({ ...v, total_sale: e.target.value }))}
+                                className="h-8 text-sm text-right w-24"
+                                step="0.01"
+                              />
+                            ) : formatCurrency(c.total_sale)}
+                          </td>
+                          <td className="py-2 px-3 text-right">{formatCurrency(c.total_balance_due)}</td>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center justify-center gap-1">
+                              {isEditing ? (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                                    onClick={saveEdit}
+                                    disabled={saving}
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                    onClick={cancelEdit}
+                                    disabled={saving}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => navigate(`/cases/${c.id}`)}
+                                    data-testid={`view-case-${c.id}`}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  {canEditCases && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => startEdit(c)}
+                                      data-testid={`edit-case-${c.id}`}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {isAdmin && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                      onClick={() => setDeleteId(c.id)}
+                                      data-testid={`delete-case-${c.id}`}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot className="bg-slate-100 font-semibold border-t-2 border-slate-300">
                     <tr>
