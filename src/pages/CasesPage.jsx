@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { calculateAge, formatAge } from '../lib/dateUtils';
+import { calculateAge, formatAge, getDefaultDateRange } from '../lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -25,6 +25,7 @@ import {
 const CasesPage = () => {
   const { api, isAdmin, canEditCases } = useAuth();
   const navigate = useNavigate();
+  const defaultDateRange = getDefaultDateRange();
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState([]);
   const [directors, setDirectors] = useState([]);
@@ -32,16 +33,16 @@ const CasesPage = () => {
   const [filters, setFilters] = useState({
     search: '',
     director_id: 'all',
-    start_date: '2017-01-01',
-    end_date: new Date().toISOString().split('T')[0]
+    start_date: defaultDateRange.startDate,
+    end_date: defaultDateRange.endDate
   });
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director_id: 'all',
-    start_date: '2017-01-01',
-    end_date: new Date().toISOString().split('T')[0]
+    start_date: defaultDateRange.startDate,
+    end_date: defaultDateRange.endDate
   });
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'date_of_death', direction: 'desc' });

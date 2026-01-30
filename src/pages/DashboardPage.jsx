@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../co
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { exportDashboardToPDF, downloadPDF } from '../lib/pdfExport';
-import { calculateAge } from '../lib/dateUtils';
+import { calculateAge, getDefaultDateRange } from '../lib/dateUtils';
 import { savePreference, loadPreference, PreferenceKeys } from '../lib/preferences';
 import { FileText, DollarSign, Users, TrendingUp, RefreshCw, Download, SlidersHorizontal, Loader as Loader2, Eye, EyeOff, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import {
@@ -40,20 +40,21 @@ ChartJS.register(
 
 const DashboardPage = () => {
   const { api, isAdmin, user } = useAuth();
+  const defaultDateRange = getDefaultDateRange();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [directors, setDirectors] = useState([]);
   const [selectedDirector, setSelectedDirector] = useState('all');
   const [grouping, setGrouping] = useState('monthly');
-  const [startDate, setStartDate] = useState('2017-01-01');
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(defaultDateRange.startDate);
+  const [endDate, setEndDate] = useState(defaultDateRange.endDate);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
-    startDate: '2017-01-01',
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: defaultDateRange.startDate,
+    endDate: defaultDateRange.endDate
   });
   const [openCases, setOpenCases] = useState([]);
   const [sortField, setSortField] = useState('age');

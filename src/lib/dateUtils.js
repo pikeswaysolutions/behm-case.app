@@ -35,3 +35,14 @@ export function formatAge(age) {
   if (age === null || age === undefined) return '-';
   return Math.round(age).toString();
 }
+
+export function getDefaultDateRange() {
+  const today = new Date();
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(today.getMonth() - 12);
+
+  return {
+    startDate: twelveMonthsAgo.toISOString().split('T')[0],
+    endDate: today.toISOString().split('T')[0]
+  };
+}

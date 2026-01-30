@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
 import { exportReportsToPDF, downloadPDF } from '../lib/pdfExport';
-import { calculateAge, formatAge } from '../lib/dateUtils';
+import { calculateAge, formatAge, getDefaultDateRange } from '../lib/dateUtils';
 import { Download, RefreshCw, FileText, DollarSign, TrendingUp, Users, SlidersHorizontal, Loader as Loader2, Eye, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -38,13 +38,14 @@ ChartJS.register(
 
 const ReportsPage = () => {
   const { api, isAdmin, user } = useAuth();
+  const defaultDateRange = getDefaultDateRange();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [directors, setDirectors] = useState([]);
   const [selectedDirector, setSelectedDirector] = useState('all');
   const [grouping, setGrouping] = useState('monthly');
-  const [startDate, setStartDate] = useState('2017-01-01');
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(defaultDateRange.startDate);
+  const [endDate, setEndDate] = useState(defaultDateRange.endDate);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [cases, setCases] = useState([]);
@@ -55,8 +56,8 @@ const ReportsPage = () => {
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
-    startDate: '2017-01-01',
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: defaultDateRange.startDate,
+    endDate: defaultDateRange.endDate
   });
 
   const metricsRef = useRef(null);

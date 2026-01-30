@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { getDefaultDateRange } from '../lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -26,13 +27,14 @@ import { ScrollArea } from '../components/ui/scroll-area';
 
 const DataTablePage = () => {
   const { api, isAdmin } = useAuth();
+  const defaultDateRange = getDefaultDateRange();
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState([]);
   const [directors, setDirectors] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
 
-  const [startDate, setStartDate] = useState('2017-01-01');
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(defaultDateRange.startDate);
+  const [endDate, setEndDate] = useState(defaultDateRange.endDate);
 
   const [sortConfig, setSortConfig] = useState({ key: 'date_of_death', direction: 'desc' });
   const [columnFilters, setColumnFilters] = useState({});
