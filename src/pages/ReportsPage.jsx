@@ -744,48 +744,62 @@ const ReportsPage = () => {
           </CardHeader>
           <CardContent>
             {/* Desktop Table */}
-            <div className="overflow-x-auto hidden lg:block">
-              <table className="w-full text-sm">
+            <div className="hidden lg:block overflow-x-hidden">
+              <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-y border-slate-200">
                   <tr>
                     <SortableHeaderCell field="case_number" label="Case #" isCasesTable textAlign="left" />
-                    <SortableHeaderCell field="date_of_death" label="Date of Death" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="date_of_death" label="DOD" isCasesTable textAlign="left" />
                     <SortableHeaderCell field="customer_first_name" label="Customer" isCasesTable textAlign="left" />
                     <SortableHeaderCell field="service_type_name" label="Service" isCasesTable textAlign="left" />
+                    <SortableHeaderCell field="sale_type_name" label="Sale" isCasesTable textAlign="left" />
                     <SortableHeaderCell field="director_name" label="Director" isCasesTable textAlign="left" />
                     <SortableHeaderCell field="age" label="Age" isCasesTable textAlign="right" className="text-right" />
-                    <SortableHeaderCell field="total_sale" label="Total Sale" isCasesTable textAlign="right" className="text-right" />
-                    <SortableHeaderCell field="payments_received" label="Payments" isCasesTable textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="total_sale" label="Sale" isCasesTable textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="payments_received" label="Paid" isCasesTable textAlign="right" className="text-right" />
                     <SortableHeaderCell field="total_balance_due" label="Balance" isCasesTable textAlign="right" className="text-right" />
-                    <th className="text-center py-3 px-3 text-xs font-semibold text-slate-700">Actions</th>
+                    <th className="text-center py-2 px-2 text-xs font-semibold text-slate-700">View</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedCases.slice(0, 100).map((c, idx) => (
-                    <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                      <td className="py-2 px-3 font-medium text-primary">{c.case_number}</td>
-                      <td className="py-2 px-3">{c.date_of_death}</td>
-                      <td className="py-2 px-3">{c.customer_first_name} {c.customer_last_name}</td>
-                      <td className="py-2 px-3">{c.service_type_name || '-'}</td>
-                      <td className="py-2 px-3">{c.director_name || '-'}</td>
-                      <td className="py-2 px-3 text-right">{formatAge(c.age)}</td>
-                      <td className="py-2 px-3 text-right">{formatCurrency(c.total_sale)}</td>
-                      <td className="py-2 px-3 text-right">{formatCurrency(c.payments_received)}</td>
-                      <td className="py-2 px-3 text-right">{formatCurrency(c.total_balance_due)}</td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center justify-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => window.open(`/cases/${c.id}`, '_blank')}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedCases.slice(0, 100).map((c, idx) => {
+                    const formatDate = (dateStr) => {
+                      if (!dateStr) return '-';
+                      const date = new Date(dateStr);
+                      return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
+                    };
+                    const formatServiceType = (service) => {
+                      if (!service) return '-';
+                      if (service.length <= 12) return service;
+                      return service.substring(0, 3);
+                    };
+                    return (
+                      <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                        <td className="py-1.5 px-2 font-medium text-primary whitespace-nowrap">{c.case_number}</td>
+                        <td className="py-1.5 px-2 whitespace-nowrap">{formatDate(c.date_of_death)}</td>
+                        <td className="py-1.5 px-2 truncate">{c.customer_first_name} {c.customer_last_name}</td>
+                        <td className="py-1.5 px-2 truncate" title={c.service_type_name}>{formatServiceType(c.service_type_name)}</td>
+                        <td className="py-1.5 px-2 whitespace-nowrap">{c.sale_type_name ? c.sale_type_name.charAt(0) : '-'}</td>
+                        <td className="py-1.5 px-2 truncate">{c.director_name || '-'}</td>
+                        <td className="py-1.5 px-2 text-right whitespace-nowrap">{formatAge(c.age)}</td>
+                        <td className="py-1.5 px-2 text-right whitespace-nowrap text-xs">{formatCurrency(c.total_sale)}</td>
+                        <td className="py-1.5 px-2 text-right whitespace-nowrap text-xs">{formatCurrency(c.payments_received)}</td>
+                        <td className="py-1.5 px-2 text-right whitespace-nowrap text-xs">{formatCurrency(c.total_balance_due)}</td>
+                        <td className="py-1.5 px-2">
+                          <div className="flex items-center justify-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => window.open(`/cases/${c.id}`, '_blank')}
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {cases.length > 100 && (
