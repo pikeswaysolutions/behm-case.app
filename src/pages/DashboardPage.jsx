@@ -441,16 +441,16 @@ const DashboardPage = () => {
 
   const MetricCard = ({ label, value, icon: Icon, bgColor, iconColor }) => (
     <Card className="metric-card">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-500 font-medium">{label}</p>
-          <p className="text-xl lg:text-2xl font-semibold text-slate-900 mt-1 truncate">
-            {value}
-          </p>
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-2 mb-auto">
+          <div className={`w-6 h-6 ${bgColor} rounded flex items-center justify-center flex-shrink-0`}>
+            <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+          </div>
+          <p className="text-xs lg:text-sm text-slate-500 font-medium truncate">{label}</p>
         </div>
-        <div className={`w-10 h-10 ${bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
-          <Icon className={`w-5 h-5 ${iconColor}`} />
-        </div>
+        <p className="text-lg lg:text-2xl font-semibold text-slate-900 mt-3">
+          {value}
+        </p>
       </div>
     </Card>
   );
