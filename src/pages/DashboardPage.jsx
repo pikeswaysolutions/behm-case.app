@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
+import { exportDashboardToPDF, downloadPDF } from '../lib/pdfExport';
 import {
   FileText,
   DollarSign,
@@ -14,7 +15,8 @@ import {
   TrendingUp,
   RefreshCw,
   Download,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Loader2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -52,12 +54,17 @@ const DashboardPage = () => {
   const [startDate, setStartDate] = useState('2017-01-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
     startDate: '2017-01-01',
     endDate: new Date().toISOString().split('T')[0]
   });
+
+  const metricsRef = useRef(null);
+  const chartsRef = useRef(null);
+  const tableRef = useRef(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -120,8 +127,39 @@ const DashboardPage = () => {
     }
   };
 
-  const handleExportPDF = () => {
-    toast.info('PDF export will be available soon');
+  const handleExportPDF = async () => {
+    if (exportingPDF) return;
+
+    setExportingPDF(true);
+    try {
+      const directorName = selectedDirector === 'all'
+        ? 'All Directors'
+        : directors.find(d => d.id === selectedDirector)?.name || selectedDirector;
+
+      const pdf = await exportDashboardToPDF({
+        title: isAdmin ? 'Company Dashboard' : 'My Dashboard',
+        filters: {
+          startDate,
+          endDate,
+          grouping,
+          director: selectedDirector,
+          directorName
+        },
+        metricsContainer: metricsRef.current,
+        chartsContainer: chartsRef.current,
+        tableContainer: tableRef.current,
+        onProgress: (status) => toast.info(status)
+      });
+
+      const filename = `dashboard_${startDate}_to_${endDate}.pdf`;
+      downloadPDF(pdf, filename);
+      toast.success('PDF exported successfully');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   const openFilterSheet = () => {
@@ -305,9 +343,9 @@ const DashboardPage = () => {
               <Download className="w-4 h-4 lg:mr-2" />
               <span className="hidden lg:inline">CSV</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF} data-testid="export-pdf-btn">
-              <Download className="w-4 h-4 lg:mr-2" />
-              <span className="hidden lg:inline">PDF</span>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exportingPDF} data-testid="export-pdf-btn">
+              {exportingPDF ? <Loader2 className="w-4 h-4 lg:mr-2 animate-spin" /> : <Download className="w-4 h-4 lg:mr-2" />}
+              <span className="hidden lg:inline">{exportingPDF ? 'Exporting...' : 'PDF'}</span>
             </Button>
           </div>
         </div>
@@ -437,7 +475,7 @@ const DashboardPage = () => {
       </Sheet>
 
       {/* Metrics - 2 per row on mobile, 5 on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
         <MetricCard
           label="Total Cases"
           value={displayTotals?.case_count || 0}
@@ -476,7 +514,7 @@ const DashboardPage = () => {
       </div>
 
       {/* Charts - Stack on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      <div ref={chartsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <Card className="chart-container">
           <CardHeader className="pb-2">
             <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
@@ -502,7 +540,7 @@ const DashboardPage = () => {
 
       {/* Director Breakdown (Admin Only) */}
       {isAdmin && filteredMetrics.length > 0 && (
-        <Card>
+        <Card ref={tableRef}>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg font-semibold">Breakdown by Director</CardTitle>
           </CardHeader>

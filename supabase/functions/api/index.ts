@@ -67,6 +67,27 @@ async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, salt);
 }
 
+function calculateAge(dateOfDeath: string | null, datePaidInFull: string | null): number | null {
+  if (!dateOfDeath) return null;
+
+  const deathDate = new Date(dateOfDeath);
+  if (isNaN(deathDate.getTime())) return null;
+
+  let endDate: Date;
+  if (datePaidInFull) {
+    endDate = new Date(datePaidInFull);
+    if (isNaN(endDate.getTime())) {
+      endDate = new Date();
+    }
+  } else {
+    endDate = new Date();
+  }
+
+  const diffTime = endDate.getTime() - deathDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays : 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -385,23 +406,41 @@ Deno.serve(async (req: Request) => {
       const reportType = resourceId;
 
       if (reportType === "dashboard" && req.method === "GET") {
-        let query = supabase.from("cases_enriched").select("*");
-
-        if (!isAdmin && currentUser.director_id) {
-          query = query.eq("director_id", currentUser.director_id);
-        }
-
         const startDate = url.searchParams.get("start_date");
         const endDate = url.searchParams.get("end_date");
         const directorId = url.searchParams.get("director_id");
 
-        if (startDate) query = query.gte("date_of_death", startDate);
-        if (endDate) query = query.lte("date_of_death", endDate);
-        if (directorId && isAdmin && directorId !== "all") query = query.eq("director_id", directorId);
+        const allCases: any[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
 
-        query = query.range(0, 99999);
+        while (hasMore) {
+          let query = supabase.from("cases_enriched").select("*");
 
-        const { data: cases } = await query;
+          if (!isAdmin && currentUser.director_id) {
+            query = query.eq("director_id", currentUser.director_id);
+          }
+
+          if (startDate) query = query.gte("date_of_death", startDate);
+          if (endDate) query = query.lte("date_of_death", endDate);
+          if (directorId && isAdmin && directorId !== "all") query = query.eq("director_id", directorId);
+
+          query = query.range(from, from + pageSize - 1).order("date_of_death", { ascending: true });
+
+          const { data, error } = await query;
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allCases.push(...data);
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const cases = allCases;
         const { data: directors } = await supabase.from("directors").select("*").eq("is_active", true);
 
         const directorMap: Record<string, string> = {};
@@ -426,7 +465,8 @@ Deno.serve(async (req: Request) => {
           dm.total_sales += Number(c.total_sale || 0);
           dm.payments_received += Number(c.payments_received || 0);
           dm.total_balance_due += Number(c.total_sale || 0) - Number(c.payments_received || 0);
-          if (c.average_age) dm.ages.push(Number(c.average_age));
+          const age = calculateAge(c.date_of_death, c.date_paid_in_full);
+          if (age !== null) dm.ages.push(age);
         });
 
         Object.values(directorMetrics).forEach((dm: any) => {
@@ -434,13 +474,13 @@ Deno.serve(async (req: Request) => {
           delete dm.ages;
         });
 
-        const allAges = cases?.filter((c: any) => c.average_age).map((c: any) => Number(c.average_age)) || [];
+        const allAges = cases?.map((c: any) => calculateAge(c.date_of_death, c.date_paid_in_full)).filter((age: number | null) => age !== null) || [];
         const grandTotals = {
           case_count: Object.values(directorMetrics).reduce((sum: number, dm: any) => sum + dm.case_count, 0),
           total_sales: Object.values(directorMetrics).reduce((sum: number, dm: any) => sum + dm.total_sales, 0),
           payments_received: Object.values(directorMetrics).reduce((sum: number, dm: any) => sum + dm.payments_received, 0),
           total_balance_due: Object.values(directorMetrics).reduce((sum: number, dm: any) => sum + dm.total_balance_due, 0),
-          average_age: allAges.length > 0 ? allAges.reduce((a, b) => a + b, 0) / allAges.length : 0
+          average_age: allAges.length > 0 ? allAges.reduce((a: number, b: number) => a + b, 0) / allAges.length : 0
         };
 
         const grouping = url.searchParams.get("grouping") || "monthly";
@@ -499,29 +539,46 @@ Deno.serve(async (req: Request) => {
           return new Response(JSON.stringify({ message: "Access denied" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
-        let query = supabase.from("cases_enriched").select("*").eq("director_id", directorId);
-
         const startDate = url.searchParams.get("start_date");
         const endDate = url.searchParams.get("end_date");
 
-        if (startDate) query = query.gte("date_of_death", startDate);
-        if (endDate) query = query.lte("date_of_death", endDate);
+        const allCases: any[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
 
-        query = query.range(0, 99999);
+        while (hasMore) {
+          let query = supabase.from("cases_enriched").select("*").eq("director_id", directorId);
 
-        const { data: cases } = await query;
-        const enrichedCases = cases?.map((c: any) => ({
+          if (startDate) query = query.gte("date_of_death", startDate);
+          if (endDate) query = query.lte("date_of_death", endDate);
+
+          query = query.range(from, from + pageSize - 1).order("date_of_death", { ascending: true });
+
+          const { data, error } = await query;
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allCases.push(...data);
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const enrichedCases = allCases.map((c: any) => ({
           ...c,
           total_balance_due: (c.total_sale || 0) - (c.payments_received || 0)
-        })) || [];
+        }));
 
-        const casesWithAge = enrichedCases.filter((c: any) => c.average_age);
+        const ages = enrichedCases.map((c: any) => calculateAge(c.date_of_death, c.date_paid_in_full)).filter((age: number | null) => age !== null);
         const metrics = {
           case_count: enrichedCases.length,
           total_sales: enrichedCases.reduce((sum: number, c: any) => sum + Number(c.total_sale || 0), 0),
           payments_received: enrichedCases.reduce((sum: number, c: any) => sum + Number(c.payments_received || 0), 0),
           total_balance_due: enrichedCases.reduce((sum: number, c: any) => sum + c.total_balance_due, 0),
-          average_age: casesWithAge.length > 0 ? casesWithAge.reduce((sum: number, c: any) => sum + Number(c.average_age), 0) / casesWithAge.length : 0
+          average_age: ages.length > 0 ? ages.reduce((a: number, b: number) => a + b, 0) / ages.length : 0
         };
 
         return new Response(JSON.stringify({ cases: enrichedCases, metrics }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

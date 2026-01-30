@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { calculateAge, formatAge } from '../lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -183,14 +184,16 @@ const CasesPage = () => {
   }, [filteredCases, sortConfig]);
 
   const totals = useMemo(() => {
+    const ages = filteredCases
+      .map(c => calculateAge(c.date_of_death, c.date_paid_in_full))
+      .filter(age => age !== null);
+
     return {
       count: filteredCases.length,
       total_sale: filteredCases.reduce((sum, c) => sum + (Number(c.total_sale) || 0), 0),
       payments_received: filteredCases.reduce((sum, c) => sum + (Number(c.payments_received) || 0), 0),
       total_balance_due: filteredCases.reduce((sum, c) => sum + (Number(c.total_balance_due) || 0), 0),
-      average_age: filteredCases.filter(c => c.average_age).length > 0
-        ? filteredCases.reduce((sum, c) => sum + (Number(c.average_age) || 0), 0) / filteredCases.filter(c => c.average_age).length
-        : 0
+      average_age: ages.length > 0 ? ages.reduce((sum, age) => sum + age, 0) / ages.length : 0
     };
   }, [filteredCases]);
 
@@ -212,7 +215,7 @@ const CasesPage = () => {
   };
 
   const handleExport = () => {
-    const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Director', 'Date PIF', 'Payments Received', 'Avg Age', 'Total Sale', 'Balance Due'];
+    const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Director', 'Date PIF', 'Payments Received', 'Age (Days)', 'Total Sale', 'Balance Due'];
     const rows = sortedCases.map(c => [
       c.case_number,
       c.date_of_death,
@@ -222,7 +225,7 @@ const CasesPage = () => {
       c.director_name || '',
       c.date_paid_in_full || '',
       (c.payments_received || 0).toFixed(2),
-      c.average_age || '',
+      formatAge(calculateAge(c.date_of_death, c.date_paid_in_full)),
       (c.total_sale || 0).toFixed(2),
       (c.total_balance_due || 0).toFixed(2)
     ]);
@@ -313,6 +316,14 @@ const CasesPage = () => {
                 <div>
                   <p className="text-slate-500">Payments</p>
                   <p className="font-medium">{formatCurrency(caseItem.payments_received)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Age (Days)</p>
+                  <p className="font-medium">{formatAge(calculateAge(caseItem.date_of_death, caseItem.date_paid_in_full))}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Date Paid</p>
+                  <p className="font-medium">{caseItem.date_paid_in_full || '-'}</p>
                 </div>
               </div>
 
@@ -595,7 +606,7 @@ const CasesPage = () => {
                         <td className="py-2 px-3">{c.director_name || '-'}</td>
                         <td className="py-2 px-3">{c.date_paid_in_full || '-'}</td>
                         <td className="py-2 px-3 text-right">{formatCurrency(c.payments_received)}</td>
-                        <td className="py-2 px-3 text-right">{c.average_age || '-'}</td>
+                        <td className="py-2 px-3 text-right">{formatAge(calculateAge(c.date_of_death, c.date_paid_in_full))}</td>
                         <td className="py-2 px-3 text-right">{formatCurrency(c.total_sale)}</td>
                         <td className="py-2 px-3 text-right">{formatCurrency(c.total_balance_due)}</td>
                         <td className="py-2 px-3">

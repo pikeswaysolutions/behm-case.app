@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Label } from '../components/ui/label';
+import { exportReportsToPDF, downloadPDF } from '../lib/pdfExport';
 import {
   Download,
   RefreshCw,
@@ -14,7 +15,8 @@ import {
   DollarSign,
   TrendingUp,
   Users,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Loader2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -54,12 +56,17 @@ const ReportsPage = () => {
   const [startDate, setStartDate] = useState('2017-01-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     director: 'all',
     grouping: 'monthly',
     startDate: '2017-01-01',
     endDate: new Date().toISOString().split('T')[0]
   });
+
+  const metricsRef = useRef(null);
+  const chartsRef = useRef(null);
+  const tableRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -185,7 +192,7 @@ const ReportsPage = () => {
     }]
   };
 
-  const handleExport = (type) => {
+  const handleExport = async (type) => {
     if (type === 'csv' && data?.cases) {
       const headers = ['Case Number', 'Date of Death', 'First Name', 'Last Name', 'Service Type', 'Sale Type', 'Director', 'Date Paid In Full', 'Payments Received', 'Average Age', 'Total Sale', 'Balance Due'];
       const rows = data.cases.map(c => [
@@ -200,7 +207,38 @@ const ReportsPage = () => {
       link.download = 'report_export.csv';
       link.click();
     } else if (type === 'pdf') {
-      toast.info('PDF export will be available soon');
+      if (exportingPDF) return;
+
+      setExportingPDF(true);
+      try {
+        const directorName = selectedDirector === 'all'
+          ? 'All Directors'
+          : directors.find(d => d.id === selectedDirector)?.name || selectedDirector;
+
+        const pdf = await exportReportsToPDF({
+          title: 'Reports',
+          filters: {
+            startDate,
+            endDate,
+            grouping,
+            director: selectedDirector,
+            directorName
+          },
+          metricsContainer: metricsRef.current,
+          chartsContainer: chartsRef.current,
+          tableContainer: tableRef.current,
+          onProgress: (status) => toast.info(status)
+        });
+
+        const filename = `reports_${startDate}_to_${endDate}.pdf`;
+        downloadPDF(pdf, filename);
+        toast.success('PDF exported successfully');
+      } catch (error) {
+        console.error('PDF export error:', error);
+        toast.error('Failed to export PDF');
+      } finally {
+        setExportingPDF(false);
+      }
     }
   };
 
@@ -278,9 +316,9 @@ const ReportsPage = () => {
               <Download className="w-4 h-4 lg:mr-2" />
               <span className="hidden lg:inline">CSV</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} data-testid="export-report-pdf">
-              <Download className="w-4 h-4 lg:mr-2" />
-              <span className="hidden lg:inline">PDF</span>
+            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={exportingPDF} data-testid="export-report-pdf">
+              {exportingPDF ? <Loader2 className="w-4 h-4 lg:mr-2 animate-spin" /> : <Download className="w-4 h-4 lg:mr-2" />}
+              <span className="hidden lg:inline">{exportingPDF ? 'Exporting...' : 'PDF'}</span>
             </Button>
           </div>
         </div>
@@ -416,7 +454,7 @@ const ReportsPage = () => {
       </Sheet>
 
       {/* Summary Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
         <MetricCard
           label="Total Cases"
           value={totals?.case_count || 0}
@@ -455,7 +493,7 @@ const ReportsPage = () => {
       </div>
 
       {/* Charts - Stack on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      <div ref={chartsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <Card className="chart-container">
           <CardHeader className="pb-2">
             <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
@@ -481,7 +519,7 @@ const ReportsPage = () => {
 
       {/* Director Distribution */}
       {isAdmin && filteredMetrics.length > 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div ref={tableRef} className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           <Card className="chart-container">
             <CardHeader className="pb-2">
               <CardTitle className="text-base lg:text-lg font-semibold">Sales by Director</CardTitle>
