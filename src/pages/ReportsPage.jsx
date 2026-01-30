@@ -30,13 +30,12 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
   Filler
 } from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line, Bar } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -44,7 +43,6 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -636,67 +634,64 @@ const ReportsPage = () => {
       </div>
 
       {/* Charts - Stack on mobile */}
-      <div ref={chartsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <Card className="chart-container">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] lg:h-[300px]">
-              <Line data={trendChartData} options={chartOptions} />
-            </div>
-          </CardContent>
-        </Card>
+      <div ref={chartsRef} className="space-y-4 lg:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Sales & Payments Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Line data={trendChartData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="chart-container">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base lg:text-lg font-semibold">Case Volume</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] lg:h-[300px]">
-              <Bar data={caseVolumeData} options={chartOptions} />
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Case Volume</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Bar data={caseVolumeData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="chart-container">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base lg:text-lg font-semibold">Case Aging Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] lg:h-[300px]">
-              <Bar data={agingChartData} options={chartOptions} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Director Distribution */}
-      {isAdmin && filteredMetrics.length > 1 && (
-        <div ref={tableRef} className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <Card className="chart-container">
             <CardHeader className="pb-2">
               <CardTitle className="text-base lg:text-lg font-semibold">Sales by Director</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[200px] lg:h-[250px] flex items-center justify-center">
-                <Doughnut
+              <div className="h-[250px] lg:h-[300px]">
+                <Bar
                   data={directorDistribution}
-                  options={{
-                    ...chartOptions,
-                    cutout: '60%',
-                    plugins: {
-                      ...chartOptions.plugins,
-                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } }
-                    }
-                  }}
+                  options={chartOptions}
                 />
               </div>
             </CardContent>
           </Card>
 
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Case Aging Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Bar data={agingChartData} options={chartOptions} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Director Distribution */}
+      {isAdmin && filteredMetrics.length > 1 && (
+        <div ref={tableRef} className="grid grid-cols-1 lg:grid-cols-1 gap-4 lg:gap-6">
           {/* Desktop Table */}
-          <Card className="lg:col-span-2 hidden lg:block">
+          <Card className="hidden lg:block">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Director Performance</CardTitle>
             </CardHeader>
