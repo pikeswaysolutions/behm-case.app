@@ -11,21 +11,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import { exportDashboardToPDF, downloadPDF } from '../lib/pdfExport';
 import { calculateAge } from '../lib/dateUtils';
 import { savePreference, loadPreference, PreferenceKeys } from '../lib/preferences';
-import {
-  FileText,
-  DollarSign,
-  Users,
-  TrendingUp,
-  RefreshCw,
-  Download,
-  SlidersHorizontal,
-  Loader2,
-  Eye,
-  EyeOff,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown
-} from 'lucide-react';
+import { FileText, DollarSign, Users, TrendingUp, RefreshCw, Download, SlidersHorizontal, Loader as Loader2, Eye, EyeOff, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,

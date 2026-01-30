@@ -10,23 +10,7 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Badge } from '../components/ui/badge';
-import {
-  Plus,
-  Search,
-  Eye,
-  Edit,
-  Trash2,
-  Download,
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal,
-  ChevronDown,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-  Check,
-  X
-} from 'lucide-react';
+import { Plus, Search, Eye, LocationEdit as Edit, Trash2, Download, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown, Check, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -9,20 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../co
 import { Label } from '../components/ui/label';
 import { exportReportsToPDF, downloadPDF } from '../lib/pdfExport';
 import { calculateAge, formatAge } from '../lib/dateUtils';
-import {
-  Download,
-  RefreshCw,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  Users,
-  SlidersHorizontal,
-  Loader2,
-  Eye,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown
-} from 'lucide-react';
+import { Download, RefreshCw, FileText, DollarSign, TrendingUp, Users, SlidersHorizontal, Loader as Loader2, Eye, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
