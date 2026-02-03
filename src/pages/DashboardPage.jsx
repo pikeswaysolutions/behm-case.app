@@ -64,7 +64,8 @@ const DashboardPage = () => {
   const [chartVisibility, setChartVisibility] = useState({
     salesPayments: true,
     caseVolume: true,
-    aging: true
+    aging: true,
+    avgSale: true
   });
   const [lineVisibility, setLineVisibility] = useState({
     sales: true,
@@ -130,7 +131,7 @@ const DashboardPage = () => {
     if (!user?.id) return;
 
     try {
-      const chartVis = await loadPreference(user.id, PreferenceKeys.DASHBOARD_CHART_VISIBILITY, { salesPayments: true, caseVolume: true, aging: true });
+      const chartVis = await loadPreference(user.id, PreferenceKeys.DASHBOARD_CHART_VISIBILITY, { salesPayments: true, caseVolume: true, aging: true, avgSale: true });
       const lineVis = await loadPreference(user.id, PreferenceKeys.DASHBOARD_SALES_PAYMENTS_LINES, { sales: true, payments: true });
 
       setChartVisibility(chartVis);
@@ -372,6 +373,25 @@ const DashboardPage = () => {
     ]
   };
 
+  const avgSaleChartData = {
+    labels: dashboardData?.time_series?.map(t => t.period) || [],
+    datasets: [
+      {
+        label: 'Average Sale',
+        data: dashboardData?.time_series?.map(t => t.cases > 0 ? t.sales / t.cases : 0) || [],
+        borderColor: '#059669',
+        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
+
+  const calculateAverageSale = () => {
+    if (!displayTotals?.case_count || displayTotals.case_count === 0) return 0;
+    return displayTotals.total_sales / displayTotals.case_count;
+  };
+
   const sortOpenCases = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -442,34 +462,41 @@ const DashboardPage = () => {
     </Card>
   );
 
-  const DirectorCard = ({ metric }) => (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="font-semibold text-slate-900">{metric.director_name}</h4>
-        <span className="text-sm text-slate-500">{metric.case_count} cases</span>
-      </div>
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Total Sales</span>
-          <span className="font-medium">${metric.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+  const DirectorCard = ({ metric }) => {
+    const directorAvgSale = metric.case_count > 0 ? metric.total_sales / metric.case_count : 0;
+    return (
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-slate-900">{metric.director_name}</h4>
+          <span className="text-sm text-slate-500">{metric.case_count} cases</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Payments</span>
-          <span className="font-medium">${metric.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Balance Due</span>
-          <span className="font-medium text-amber-600">${metric.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-        </div>
-        {metric.average_age && (
+        <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Avg Age</span>
-            <span className="font-medium">{metric.average_age?.toFixed(1)}</span>
+            <span className="text-slate-500">Total Sales</span>
+            <span className="font-medium">${metric.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
           </div>
-        )}
-      </div>
-    </Card>
-  );
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Avg Sale</span>
+            <span className="font-medium">${directorAvgSale.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Payments</span>
+            <span className="font-medium">${metric.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Balance Due</span>
+            <span className="font-medium text-amber-600">${metric.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          {metric.average_age && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Avg Age</span>
+              <span className="font-medium">{metric.average_age?.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  };
 
   if (loading && !dashboardData) {
     return (
@@ -640,8 +667,8 @@ const DashboardPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Metrics - 2 per row on mobile, 5 on desktop */}
-      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* Metrics - 2 per row on mobile, 3 on desktop (2 rows) */}
+      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
         <MetricCard
           label="Total Cases"
           value={displayTotals?.case_count || 0}
@@ -669,6 +696,13 @@ const DashboardPage = () => {
           icon={DollarSign}
           bgColor="bg-amber-50"
           iconColor="text-amber-600"
+        />
+        <MetricCard
+          label="Avg Sale"
+          value={`$${calculateAverageSale().toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          icon={TrendingUp}
+          bgColor="bg-emerald-50"
+          iconColor="text-emerald-600"
         />
         <MetricCard
           label="Avg Age"
@@ -712,6 +746,16 @@ const DashboardPage = () => {
               />
               <label htmlFor="chart-aging" className="text-sm text-slate-600 cursor-pointer">
                 Case Aging
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="chart-avg-sale"
+                checked={chartVisibility.avgSale}
+                onCheckedChange={() => toggleChartVisibility('avgSale')}
+              />
+              <label htmlFor="chart-avg-sale" className="text-sm text-slate-600 cursor-pointer">
+                Avg Sale Trend
               </label>
             </div>
           </div>
@@ -782,6 +826,31 @@ const DashboardPage = () => {
             </CardContent>
           </Card>
         )}
+
+        {chartVisibility.avgSale && (
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Average Sale Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Line data={avgSaleChartData} options={{
+                  ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    y: {
+                      ...chartOptions.scales.y,
+                      ticks: {
+                        ...chartOptions.scales.y.ticks,
+                        callback: (value) => `$${value.toLocaleString()}`
+                      }
+                    }
+                  }
+                }} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Director Breakdown (Admin Only) */}
@@ -800,21 +869,26 @@ const DashboardPage = () => {
                     <SortableHeaderCell field="case_count" label="Cases" textAlign="right" className="text-right" />
                     <SortableHeaderCell field="average_age" label="Avg Age" textAlign="right" className="text-right" />
                     <SortableHeaderCell field="total_sales" label="Total Sales" textAlign="right" className="text-right" />
+                    <SortableHeaderCell field="avg_sale" label="Avg Sale" textAlign="right" className="text-right" />
                     <SortableHeaderCell field="payments_received" label="Payments" textAlign="right" className="text-right" />
                     <SortableHeaderCell field="total_balance_due" label="Balance Due" textAlign="right" className="text-right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedMetrics.map((m, i) => (
-                    <tr key={m.director_id || i} className="data-table-row">
-                      <td className="py-3 px-4 font-medium">{m.director_name}</td>
-                      <td className="py-3 px-4 text-right">{m.case_count}</td>
-                      <td className="py-3 px-4 text-right">{m.average_age?.toFixed(1) || '—'}</td>
-                      <td className="py-3 px-4 text-right">${m.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3 px-4 text-right">${m.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3 px-4 text-right">${m.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))}
+                  {sortedMetrics.map((m, i) => {
+                    const directorAvgSale = m.case_count > 0 ? m.total_sales / m.case_count : 0;
+                    return (
+                      <tr key={m.director_id || i} className="data-table-row">
+                        <td className="py-3 px-4 font-medium">{m.director_name}</td>
+                        <td className="py-3 px-4 text-right">{m.case_count}</td>
+                        <td className="py-3 px-4 text-right">{m.average_age?.toFixed(1) || '—'}</td>
+                        <td className="py-3 px-4 text-right">${m.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right">${directorAvgSale.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right">${m.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right">${m.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50 font-semibold">
@@ -822,6 +896,7 @@ const DashboardPage = () => {
                     <td className="py-3 px-4 text-right">{displayTotals?.case_count}</td>
                     <td className="py-3 px-4 text-right">{displayTotals?.average_age?.toFixed(1) || '—'}</td>
                     <td className="py-3 px-4 text-right">${displayTotals?.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-right">${calculateAverageSale().toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-right">${displayTotals?.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-right">${displayTotals?.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                   </tr>
@@ -844,6 +919,10 @@ const DashboardPage = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Total Sales</span>
                     <span className="font-semibold">${displayTotals?.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Avg Sale</span>
+                    <span className="font-semibold">${calculateAverageSale().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Payments</span>

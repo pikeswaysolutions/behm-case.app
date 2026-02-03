@@ -295,6 +295,25 @@ const ReportsPage = () => {
     ]
   };
 
+  const avgSaleChartData = {
+    labels: data?.time_series?.map(t => t.period) || [],
+    datasets: [
+      {
+        label: 'Average Sale',
+        data: data?.time_series?.map(t => t.cases > 0 ? t.sales / t.cases : 0) || [],
+        borderColor: '#059669',
+        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
+
+  const calculateAverageSale = () => {
+    if (!totals?.case_count || totals.case_count === 0) return 0;
+    return totals.total_sales / totals.case_count;
+  };
+
   const formatCurrency = (val) => {
     return '$' + (Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -387,28 +406,35 @@ const ReportsPage = () => {
     </Card>
   );
 
-  const DirectorCard = ({ metric }) => (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="font-semibold text-slate-900">{metric.director_name}</h4>
-        <span className="text-sm text-slate-500">{metric.case_count} cases</span>
-      </div>
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Total Sales</span>
-          <span className="font-medium">${metric.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+  const DirectorCard = ({ metric }) => {
+    const directorAvgSale = metric.case_count > 0 ? metric.total_sales / metric.case_count : 0;
+    return (
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-slate-900">{metric.director_name}</h4>
+          <span className="text-sm text-slate-500">{metric.case_count} cases</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Payments</span>
-          <span className="font-medium">${metric.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Total Sales</span>
+            <span className="font-medium">${metric.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Avg Sale</span>
+            <span className="font-medium">${directorAvgSale.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Payments</span>
+            <span className="font-medium">${metric.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Balance</span>
+            <span className="font-medium text-amber-600">${metric.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          </div>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Balance</span>
-          <span className="font-medium text-amber-600">${metric.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-        </div>
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   if (loading && !data) {
     return (
@@ -582,8 +608,8 @@ const ReportsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Summary Metrics */}
-      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* Summary Metrics - 2 rows of 3 */}
+      <div ref={metricsRef} className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
         <MetricCard
           label="Total Cases"
           value={totals?.case_count || 0}
@@ -611,6 +637,13 @@ const ReportsPage = () => {
           icon={DollarSign}
           bgColor="bg-amber-50"
           iconColor="text-amber-600"
+        />
+        <MetricCard
+          label="Avg Sale"
+          value={`$${calculateAverageSale().toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          icon={TrendingUp}
+          bgColor="bg-emerald-50"
+          iconColor="text-emerald-600"
         />
         <MetricCard
           label="Avg Age"
@@ -673,6 +706,30 @@ const ReportsPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <Card className="chart-container">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base lg:text-lg font-semibold">Average Sale Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px] lg:h-[300px]">
+                <Line data={avgSaleChartData} options={{
+                  ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    y: {
+                      ...chartOptions.scales.y,
+                      ticks: {
+                        callback: (value) => `$${value.toLocaleString()}`
+                      }
+                    }
+                  }
+                }} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Director Distribution */}
@@ -692,21 +749,26 @@ const ReportsPage = () => {
                       <SortableHeaderCell field="case_count" label="Cases" textAlign="right" className="text-right" />
                       <SortableHeaderCell field="average_age" label="Avg Age" textAlign="right" className="text-right" />
                       <SortableHeaderCell field="total_sales" label="Total Sales" textAlign="right" className="text-right" />
+                      <SortableHeaderCell field="avg_sale" label="Avg Sale" textAlign="right" className="text-right" />
                       <SortableHeaderCell field="payments_received" label="Payments" textAlign="right" className="text-right" />
                       <SortableHeaderCell field="total_balance_due" label="Balance" textAlign="right" className="text-right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedDirectorMetrics.map((m, i) => (
-                      <tr key={m.director_id || i} className="data-table-row">
-                        <td className="py-3 px-4 font-medium">{m.director_name}</td>
-                        <td className="py-3 px-4 text-right">{m.case_count}</td>
-                        <td className="py-3 px-4 text-right">{m.average_age?.toFixed(1) || '—'}</td>
-                        <td className="py-3 px-4 text-right">${m.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right">${m.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right">${m.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    ))}
+                    {sortedDirectorMetrics.map((m, i) => {
+                      const directorAvgSale = m.case_count > 0 ? m.total_sales / m.case_count : 0;
+                      return (
+                        <tr key={m.director_id || i} className="data-table-row">
+                          <td className="py-3 px-4 font-medium">{m.director_name}</td>
+                          <td className="py-3 px-4 text-right">{m.case_count}</td>
+                          <td className="py-3 px-4 text-right">{m.average_age?.toFixed(1) || '—'}</td>
+                          <td className="py-3 px-4 text-right">${m.total_sales?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right">${directorAvgSale.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right">${m.payments_received?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right">${m.total_balance_due?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
