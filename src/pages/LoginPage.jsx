@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -14,41 +14,40 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [seeding, setSeeding] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const seedData = async () => {
-      try {
-        setSeeding(true);
-        await fetch(`${SUPABASE_URL}/functions/v1/auth/seed`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      } catch (error) {
-      } finally {
-        setSeeding(false);
-      }
-    };
-    seedData();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
-      toast.success('Welcome back!');
+      if (isSignUp) {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/signup`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password, name }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Signup failed');
+        }
+        toast.success('Account created! Signing you in...');
+        await login(email, password);
+      } else {
+        await login(email, password);
+        toast.success('Welcome back!');
+      }
       navigate('/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Invalid email or password');
+      console.error('Auth error:', error);
+      toast.error(error.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -72,13 +71,31 @@ const LoginPage = () => {
 
           <Card className="border-0 shadow-lg">
             <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-xl font-semibold">Sign in</CardTitle>
+              <CardTitle className="text-xl font-semibold">
+                {isSignUp ? 'Create account' : 'Sign in'}
+              </CardTitle>
               <CardDescription>
-                Enter your credentials to access your account
+                {isSignUp
+                  ? 'Enter your details to create a new account'
+                  : 'Enter your credentials to access your account'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Smith"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -117,19 +134,44 @@ const LoginPage = () => {
                 <Button
                   type="submit"
                   className="w-full h-11 btn-primary"
-                  disabled={loading || seeding}
+                  disabled={loading}
                   data-testid="login-submit-btn"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Signing in...
+                      {isSignUp ? 'Creating account...' : 'Signing in...'}
                     </>
                   ) : (
-                    'Sign in'
+                    isSignUp ? 'Create account' : 'Sign in'
                   )}
                 </Button>
               </form>
+              <div className="mt-4 text-center text-sm text-slate-600">
+                {isSignUp ? (
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(false)}
+                      className="text-slate-900 font-medium hover:underline"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Need an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(true)}
+                      className="text-slate-900 font-medium hover:underline"
+                    >
+                      Create one
+                    </button>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

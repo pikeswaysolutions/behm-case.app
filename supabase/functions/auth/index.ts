@@ -22,6 +22,66 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const path = url.pathname.replace("/auth", "").replace("/", "");
 
+    if (req.method === "POST" && path === "signup") {
+      const { email, password, name } = await req.json();
+
+      if (!email || !password || !name) {
+        return new Response(
+          JSON.stringify({ message: "Email, password, and name are required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingUser) {
+        return new Response(
+          JSON.stringify({ message: "A user with this email already exists" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true
+      });
+
+      if (authError) {
+        return new Response(
+          JSON.stringify({ message: authError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error: profileError } = await supabase.from("users").insert({
+        email,
+        name,
+        role: "admin",
+        can_edit_cases: true,
+        is_active: true,
+        auth_id: authData.user.id,
+        created_at: new Date().toISOString(),
+      });
+
+      if (profileError) {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        return new Response(
+          JSON.stringify({ message: "Failed to create user profile" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ message: "Account created successfully" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (req.method === "POST" && path === "seed") {
       const { data: existingAdmin } = await supabase
         .from("users")
