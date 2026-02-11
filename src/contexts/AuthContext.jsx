@@ -57,34 +57,26 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (authUser) => {
-    if (!authUser) return null;
+  const fetchUserProfile = async (accessToken) => {
+    if (!accessToken) return null;
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_id', authUser.id)
-      .maybeSingle();
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (error || !data) {
-      const { data: emailData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', authUser.email)
-        .maybeSingle();
-
-      if (emailData) {
-        await supabase
-          .from('users')
-          .update({ auth_id: authUser.id })
-          .eq('id', emailData.id);
-
-        return emailData;
+      if (!response.ok) {
+        return null;
       }
+
+      return await response.json();
+    } catch {
       return null;
     }
-
-    return data;
   };
 
   const api = useCallback(() => {
@@ -94,16 +86,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
-      if (currentSession?.user) {
-        fetchUserProfile(currentSession.user).then(setUser);
+      if (currentSession?.access_token) {
+        fetchUserProfile(currentSession.access_token).then(setUser);
       }
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      if (newSession?.user) {
-        fetchUserProfile(newSession.user).then(setUser);
+      if (newSession?.access_token) {
+        fetchUserProfile(newSession.access_token).then(setUser);
       } else {
         setUser(null);
       }
@@ -122,7 +114,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error(error.message);
     }
 
-    const profile = await fetchUserProfile(data.user);
+    const profile = await fetchUserProfile(data.session.access_token);
 
     if (!profile) {
       await supabase.auth.signOut();
