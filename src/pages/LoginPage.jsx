@@ -24,16 +24,14 @@ const LoginPage = () => {
     const seedData = async () => {
       try {
         setSeeding(true);
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/seed`, {
+        await fetch(`${SUPABASE_URL}/functions/v1/auth/seed`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
           },
         });
-        await response.json(); // Properly consume the response
       } catch (error) {
-        // Ignore if already seeded
       } finally {
         setSeeding(false);
       }

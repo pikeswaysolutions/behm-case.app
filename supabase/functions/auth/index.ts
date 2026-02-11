@@ -4,142 +4,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Auth-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
-
-const JWT_SECRET = "behm-funeral-home-secret-key-2024";
-const JWT_EXPIRATION_HOURS = 24;
-
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const passwordData = encoder.encode(password);
-
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    passwordData,
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: salt,
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    256
-  );
-
-  const hashArray = new Uint8Array(derivedBits);
-  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
-  const hashHex = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
-
-  return `${saltHex}:${hashHex}`;
-}
-
-async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
-  try {
-    const [saltHex, hashHex] = storedHash.split(':');
-    if (!saltHex || !hashHex) return false;
-
-    const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
-    const encoder = new TextEncoder();
-    const passwordData = encoder.encode(password);
-
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      passwordData,
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-
-    const derivedBits = await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt: salt,
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      256
-    );
-
-    const computedHash = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return computedHash === hashHex;
-  } catch {
-    return false;
-  }
-}
-
-async function createJWT(payload: Record<string, unknown>): Promise<string> {
-  const header = { alg: "HS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + (JWT_EXPIRATION_HOURS * 60 * 60);
-
-  const fullPayload = { ...payload, iat: now, exp };
-
-  const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const encodedPayload = btoa(JSON.stringify(fullPayload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-  const data = `${encodedHeader}.${encodedPayload}`;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(JWT_SECRET);
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-  const signatureArray = new Uint8Array(signature);
-  const signatureBase64 = btoa(String.fromCharCode(...signatureArray)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-  return `${data}.${signatureBase64}`;
-}
-
-async function verifyJWT(token: string): Promise<Record<string, unknown> | null> {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-
-    const [encodedHeader, encodedPayload, signature] = parts;
-    const data = `${encodedHeader}.${encodedPayload}`;
-
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(JWT_SECRET);
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-
-    const signatureBytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, encoder.encode(data));
-
-    if (!valid) return null;
-
-    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')));
-
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -148,183 +14,87 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     const url = new URL(req.url);
     const path = url.pathname.replace("/auth", "").replace("/", "");
 
-    if (req.method === "POST" && path === "login") {
-      const { email, password } = await req.json();
-
-      const { data: users, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", email)
-        .limit(1);
-
-      if (error || !users || users.length === 0) {
-        return new Response(
-          JSON.stringify({ message: "Invalid email or password" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const user = users[0];
-      const validPassword = await verifyPassword(password, user.password_hash);
-
-      if (!validPassword) {
-        return new Response(
-          JSON.stringify({ message: "Invalid email or password" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (!user.is_active) {
-        return new Response(
-          JSON.stringify({ message: "Account is deactivated" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const token = await createJWT({ sub: user.id });
-      const { password_hash: _, ...userWithoutPassword } = user;
-
-      return new Response(
-        JSON.stringify({ access_token: token, token_type: "bearer", user: userWithoutPassword }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (req.method === "POST" && path === "register") {
-      const { email, password, name, role = "director", director_id = null, can_edit_cases = false } = await req.json();
-
-      const { data: existing } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        return new Response(
-          JSON.stringify({ message: "Email already registered" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const hashedPassword = await hashPassword(password);
-      const newUser = {
-        email,
-        name,
-        role,
-        director_id,
-        can_edit_cases,
-        is_active: true,
-        password_hash: hashedPassword,
-        created_at: new Date().toISOString(),
-      };
-
-      const { data: insertedUsers, error } = await supabase
-        .from("users")
-        .insert(newUser)
-        .select();
-
-      if (error) {
-        return new Response(
-          JSON.stringify({ message: error.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const user = insertedUsers[0];
-      const token = await createJWT({ sub: user.id });
-      const { password_hash: _, ...userWithoutPassword } = user;
-
-      return new Response(
-        JSON.stringify({ access_token: token, token_type: "bearer", user: userWithoutPassword }),
-        { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (req.method === "GET" && path === "me") {
-      const authToken = req.headers.get("X-Auth-Token");
-
-      if (!authToken) {
-        return new Response(
-          JSON.stringify({ message: "No token provided" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const payload = await verifyJWT(authToken);
-
-      if (!payload || !payload.sub) {
-        return new Response(
-          JSON.stringify({ message: "Invalid token" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const { data: users, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", payload.sub)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (error || !users || users.length === 0) {
-        return new Response(
-          JSON.stringify({ message: "User not found" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const { password_hash: _, ...userWithoutPassword } = users[0];
-      return new Response(
-        JSON.stringify(userWithoutPassword),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (req.method === "POST" && path === "seed") {
       const { data: existingAdmin } = await supabase
         .from("users")
-        .select("id")
+        .select("id, auth_id")
         .eq("email", "admin@behmfuneral.com")
-        .limit(1);
+        .maybeSingle();
 
-      if (existingAdmin && existingAdmin.length > 0) {
+      if (existingAdmin?.auth_id) {
         return new Response(
           JSON.stringify({ message: "Data already seeded" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const adminPassword = await hashPassword("admin123");
-      const directorPassword = await hashPassword("director123");
-
-      await supabase.from("users").insert([
+      const usersToSeed = [
         {
           email: "admin@behmfuneral.com",
+          password: "admin123",
           name: "Administrator",
           role: "admin",
           director_id: null,
           can_edit_cases: true,
-          is_active: true,
-          password_hash: adminPassword,
-          created_at: new Date().toISOString(),
         },
         {
           email: "eric@behmfuneral.com",
+          password: "director123",
           name: "Eric Behm",
           role: "director",
           director_id: "11111111-1111-1111-1111-111111111111",
           can_edit_cases: true,
-          is_active: true,
-          password_hash: directorPassword,
-          created_at: new Date().toISOString(),
         }
-      ]);
+      ];
+
+      for (const userData of usersToSeed) {
+        const { data: existingUser } = await supabase
+          .from("users")
+          .select("id, auth_id")
+          .eq("email", userData.email)
+          .maybeSingle();
+
+        if (existingUser?.auth_id) {
+          continue;
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: userData.email,
+          password: userData.password,
+          email_confirm: true
+        });
+
+        if (authError) {
+          console.error(`Failed to create auth user for ${userData.email}:`, authError.message);
+          continue;
+        }
+
+        if (existingUser) {
+          await supabase
+            .from("users")
+            .update({ auth_id: authData.user.id })
+            .eq("id", existingUser.id);
+        } else {
+          await supabase.from("users").insert({
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+            director_id: userData.director_id,
+            can_edit_cases: userData.can_edit_cases,
+            is_active: true,
+            auth_id: authData.user.id,
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
 
       return new Response(
         JSON.stringify({ message: "Data seeded successfully" }),
@@ -338,6 +108,7 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (error) {
+    console.error("Auth Error:", error);
     return new Response(
       JSON.stringify({ message: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

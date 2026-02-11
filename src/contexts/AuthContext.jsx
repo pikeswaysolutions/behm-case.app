@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -13,14 +14,13 @@ export const useAuth = () => {
   return context;
 };
 
-const createApiClient = (token) => {
+const createApiClient = (session) => {
   const headers = {
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     'Content-Type': 'application/json',
   };
 
-  if (token) {
-    headers['X-Auth-Token'] = token;
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
   }
 
   const request = async (endpoint, options = {}) => {
@@ -54,72 +54,93 @@ const createApiClient = (token) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const api = useCallback(() => {
-    return createApiClient(token);
-  }, [token]);
+  const fetchUserProfile = async (authUser) => {
+    if (!authUser) return null;
 
-  useEffect(() => {
-    const verifyToken = async () => {
-      if (token) {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/me`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json',
-              'X-Auth-Token': token,
-            },
-          });
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_id', authUser.id)
+      .maybeSingle();
 
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            localStorage.removeItem('token');
-            setToken(null);
-            setUser(null);
-          }
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
-        }
+    if (error || !data) {
+      const { data: emailData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', authUser.email)
+        .maybeSingle();
+
+      if (emailData) {
+        await supabase
+          .from('users')
+          .update({ auth_id: authUser.id })
+          .eq('id', emailData.id);
+
+        return emailData;
       }
-      setLoading(false);
-    };
-    verifyToken();
-  }, [token]);
-
-  const login = async (email, password) => {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
+      return null;
     }
 
-    const { access_token, user: userData } = data;
-    localStorage.setItem('token', access_token);
-    setToken(access_token);
-    setUser(userData);
-    return userData;
+    return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+  const api = useCallback(() => {
+    return createApiClient(session);
+  }, [session]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      if (currentSession?.user) {
+        fetchUserProfile(currentSession.user).then(setUser);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (newSession?.user) {
+        fetchUserProfile(newSession.user).then(setUser);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const profile = await fetchUserProfile(data.user);
+
+    if (!profile) {
+      await supabase.auth.signOut();
+      throw new Error('No user profile found. Contact administrator.');
+    }
+
+    if (!profile.is_active) {
+      await supabase.auth.signOut();
+      throw new Error('Account is deactivated');
+    }
+
+    setUser(profile);
+    return profile;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
     setUser(null);
   };
 
@@ -128,7 +149,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    token,
+    session,
+    token: session?.access_token,
     loading,
     login,
     logout,

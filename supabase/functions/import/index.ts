@@ -5,61 +5,48 @@ import * as XLSX from "npm:xlsx@0.18.5";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Auth-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const JWT_SECRET = "behm-funeral-home-secret-key-2024";
+async function getCurrentUser(supabaseAdmin: any, authHeader: string | null) {
+  if (!authHeader) return null;
 
-async function verifyJWT(token: string): Promise<Record<string, unknown> | null> {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
 
-    const [encodedHeader, encodedPayload, signature] = parts;
-    const data = `${encodedHeader}.${encodedPayload}`;
+  const { data: { user: authUser }, error } = await supabaseClient.auth.getUser();
+  if (error || !authUser) return null;
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(JWT_SECRET);
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-
-    const signatureBytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, encoder.encode(data));
-
-    if (!valid) return null;
-
-    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')));
-
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-async function getCurrentUser(supabase: any, token: string | null) {
-  if (!token) return null;
-
-  const payload = await verifyJWT(token);
-  if (!payload || !payload.sub) return null;
-
-  const { data: users } = await supabase
+  let { data: userProfile } = await supabaseAdmin
     .from("users")
     .select("*")
-    .eq("id", payload.sub)
+    .eq("auth_id", authUser.id)
     .eq("is_active", true)
-    .limit(1);
+    .maybeSingle();
 
-  return users && users.length > 0 ? users[0] : null;
+  if (!userProfile) {
+    const { data: emailProfile } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .eq("email", authUser.email)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (emailProfile) {
+      await supabaseAdmin
+        .from("users")
+        .update({ auth_id: authUser.id })
+        .eq("id", emailProfile.id);
+
+      userProfile = emailProfile;
+    }
+  }
+
+  return userProfile;
 }
 
 function parseExcelDate(value: any): string | null {
@@ -106,8 +93,8 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authToken = req.headers.get("X-Auth-Token");
-    const currentUser = await getCurrentUser(supabase, authToken);
+    const authHeader = req.headers.get("Authorization");
+    const currentUser = await getCurrentUser(supabase, authHeader);
 
     if (!currentUser) {
       return new Response(

@@ -1,70 +1,51 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Auth-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const JWT_SECRET = "behm-funeral-home-secret-key-2024";
+async function getCurrentUser(supabaseAdmin: any, authHeader: string | null) {
+  if (!authHeader) return null;
 
-async function verifyJWT(token: string): Promise<Record<string, unknown> | null> {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
 
-    const [encodedHeader, encodedPayload, signature] = parts;
-    const data = `${encodedHeader}.${encodedPayload}`;
+  const { data: { user: authUser }, error } = await supabaseClient.auth.getUser();
+  if (error || !authUser) return null;
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(JWT_SECRET);
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-
-    const signatureBytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, encoder.encode(data));
-
-    if (!valid) return null;
-
-    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')));
-
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-async function getCurrentUser(supabase: any, token: string | null) {
-  if (!token) return null;
-
-  const payload = await verifyJWT(token);
-  if (!payload || !payload.sub) return null;
-
-  const { data: users } = await supabase
+  let { data: userProfile } = await supabaseAdmin
     .from("users")
     .select("*")
-    .eq("id", payload.sub)
+    .eq("auth_id", authUser.id)
     .eq("is_active", true)
-    .limit(1);
+    .maybeSingle();
 
-  return users && users.length > 0 ? users[0] : null;
-}
+  if (!userProfile) {
+    const { data: emailProfile } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .eq("email", authUser.email)
+      .eq("is_active", true)
+      .maybeSingle();
 
-async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
-  return await bcrypt.hash(password, salt);
+    if (emailProfile) {
+      await supabaseAdmin
+        .from("users")
+        .update({ auth_id: authUser.id })
+        .eq("id", emailProfile.id);
+
+      userProfile = emailProfile;
+    }
+  }
+
+  return userProfile;
 }
 
 function calculateAge(dateOfDeath: string | null, datePaidInFull: string | null): number | null {
@@ -103,8 +84,8 @@ Deno.serve(async (req: Request) => {
     const resource = pathParts[0];
     const resourceId = pathParts[1];
 
-    const authToken = req.headers.get("X-Auth-Token");
-    const currentUser = await getCurrentUser(supabase, authToken);
+    const authHeader = req.headers.get("Authorization");
+    const currentUser = await getCurrentUser(supabase, authHeader);
 
     if (!currentUser && resource !== "health") {
       return new Response(
@@ -115,7 +96,6 @@ Deno.serve(async (req: Request) => {
 
     const isAdmin = currentUser?.role === "admin";
 
-    // DIRECTORS
     if (resource === "directors") {
       if (req.method === "GET") {
         const { data, error } = await supabase.from("directors").select("*");
@@ -147,7 +127,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // SERVICE TYPES
     if (resource === "service-types") {
       if (req.method === "GET") {
         const { data, error } = await supabase.from("service_types").select("*");
@@ -175,7 +154,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // SALE TYPES
     if (resource === "sale-types") {
       if (req.method === "GET") {
         const { data, error } = await supabase.from("sale_types").select("*");
@@ -203,7 +181,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // CASES
     if (resource === "cases") {
       if (req.method === "GET" && !resourceId) {
         const directorId = url.searchParams.get("director_id");
@@ -347,10 +324,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // USERS (Admin only)
     if (resource === "users" && isAdmin) {
       if (req.method === "GET" && !resourceId) {
-        const { data, error } = await supabase.from("users").select("id, email, name, role, director_id, can_edit_cases, is_active, created_at");
+        const { data, error } = await supabase.from("users").select("id, email, name, role, director_id, can_edit_cases, is_active, created_at, auth_id");
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -363,7 +339,22 @@ Deno.serve(async (req: Request) => {
           return new Response(JSON.stringify({ message: "Email already registered" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
-        const hashedPassword = await hashPassword(body.password);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+          email: body.email,
+          password: body.password,
+          email_confirm: true
+        });
+
+        if (authError) {
+          return new Response(JSON.stringify({ message: authError.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
         const { data, error } = await supabase.from("users").insert({
           email: body.email,
           name: body.name,
@@ -371,9 +362,9 @@ Deno.serve(async (req: Request) => {
           director_id: body.director_id,
           can_edit_cases: body.can_edit_cases ?? false,
           is_active: true,
-          password_hash: hashedPassword,
+          auth_id: authData.user.id,
           created_at: new Date().toISOString(),
-        }).select("id, email, name, role, director_id, can_edit_cases, is_active, created_at");
+        }).select("id, email, name, role, director_id, can_edit_cases, is_active, created_at, auth_id");
 
         if (error) throw error;
         return new Response(JSON.stringify(data[0]), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -388,9 +379,20 @@ Deno.serve(async (req: Request) => {
         if (body.director_id !== undefined) updateData.director_id = body.director_id;
         if (body.can_edit_cases !== undefined) updateData.can_edit_cases = body.can_edit_cases;
         if (body.is_active !== undefined) updateData.is_active = body.is_active;
-        if (body.password) updateData.password_hash = await hashPassword(body.password);
 
-        const { data, error } = await supabase.from("users").update(updateData).eq("id", resourceId).select("id, email, name, role, director_id, can_edit_cases, is_active, created_at");
+        if (body.password) {
+          const { data: userRecord } = await supabase.from("users").select("auth_id").eq("id", resourceId).maybeSingle();
+          if (userRecord?.auth_id) {
+            const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+            const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+              auth: { autoRefreshToken: false, persistSession: false }
+            });
+            await adminClient.auth.admin.updateUserById(userRecord.auth_id, { password: body.password });
+          }
+        }
+
+        const { data, error } = await supabase.from("users").update(updateData).eq("id", resourceId).select("id, email, name, role, director_id, can_edit_cases, is_active, created_at, auth_id");
         if (error) throw error;
         return new Response(JSON.stringify(data[0]), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -401,7 +403,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // REPORTS/DASHBOARD
     if (resource === "reports") {
       const reportType = resourceId;
 
@@ -585,7 +586,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Health check
     if (resource === "health") {
       return new Response(JSON.stringify({ status: "ok" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
