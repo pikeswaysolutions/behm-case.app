@@ -147,7 +147,7 @@ const LoginPage = () => {
                   )}
                 </Button>
               </form>
-              <div className="mt-4 text-center text-sm text-slate-600">
+              <div className="mt-4 text-center text-sm text-slate-600 hidden">
                 {isSignUp ? (
                   <>
                     Already have an account?{' '}
