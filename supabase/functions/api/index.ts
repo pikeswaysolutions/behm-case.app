@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Auth-Token",
 };
 
-const JWT_SECRET = Deno.env.get("JWT_SECRET") || "behm-funeral-home-secret-key-2024";
+const JWT_SECRET = "behm-funeral-home-secret-key-2024";
 
 async function verifyJWT(token: string): Promise<Record<string, unknown> | null> {
   try {
